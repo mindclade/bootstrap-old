@@ -13,8 +13,3 @@ provider "google-beta" {
   default_labels  = var.labels
   request_timeout = "120s"
 }
-
-data "google_billing_account" "this" {
-  billing_account = var.billing_account
-  open            = true
-}
