@@ -129,7 +129,6 @@ data "google_storage_project_service_account" "seed" {
   # project-service addition must not make the state-key IAM member unknown during planning.
   depends_on = [google_project_service.seed["storage.googleapis.com"]]
 }
-
 resource "google_kms_crypto_key_iam_member" "state_primary_gcs" {
   crypto_key_id = google_kms_crypto_key.state_primary.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
