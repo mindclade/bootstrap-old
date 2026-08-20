@@ -9,6 +9,13 @@ protected-release principal for the normal-plane signer service account, and the
 `v3.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
 roles remain owned by `infrastructure-live`; bootstrap owns only the federation trust anchor.
 
+Contract `1.2.0` moves every GitHub principal to GitHub Cloud's immutable default subject
+format, `repo:OWNER@OWNER-ID/REPO@REPO-ID:context`, and exports the owner ID with each
+repository identity. Consumers must reject the pre-2026 name-only signer principal. Buildkite
+federation maps the immutable pipeline UUID to Google's bounded subject and requires callers to
+request the `pipeline_id` subject plus `organization_id` claim; the existing provider output is
+the required token audience.
+
 Retrieve and validate the value after an approved apply:
 
 ```sh

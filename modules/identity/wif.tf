@@ -11,13 +11,21 @@ locals {
     mindclade-internal-monorepo = var.github_repository_ids["mindclade-internal-monorepo"]
   }
 
+  # GitHub Cloud repositories created or renamed after 2026-07-15 use the immutable default
+  # subject segment OWNER@OWNER-ID/REPO@REPO-ID. These control repositories were created after
+  # that cutoff, so legacy name-only subjects are intentionally not accepted.
+  github_immutable_subject_prefixes = {
+    for repo, repository_id in local.wif_repositories : repo =>
+    "repo:${var.github_org}@${var.github_org_id}/${repo}@${repository_id}"
+  }
+
   # The monorepo GitHub provider is intentionally a signer-only trust path. Heavy builds and
   # qualification use Buildkite federation; only the protected release environment executing
   # this versioned reusable workflow may exchange a GitHub token through this provider.
   github_signer_repository       = "mindclade-internal-monorepo"
   github_signer_environment      = "release"
   github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
-  github_signer_subject          = "repo:${var.github_org}/${local.github_signer_repository}:environment:${local.github_signer_environment}"
+  github_signer_subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
 
   github_provider_audiences = {
     for repo, _ in local.wif_repositories : repo =>
@@ -34,7 +42,7 @@ locals {
       "assertion.sub == ${jsonencode(local.github_signer_subject)}",
       "assertion.job_workflow_ref == ${jsonencode(local.github_signer_job_workflow_ref)}",
       ] : [
-      "assertion.sub.startsWith(${jsonencode("repo:${var.github_org}/${repo}:")})",
+      "assertion.sub.startsWith(${jsonencode("${local.github_immutable_subject_prefixes[repo]}:")})",
     ]))
   }
 }
@@ -102,7 +110,11 @@ resource "google_iam_workload_identity_pool_provider" "buildkite" {
   display_name                       = "Mindclade Buildkite"
 
   attribute_mapping = {
-    "google.subject"               = "assertion.sub"
+    # Buildkite's default compound `sub` includes organization/pipeline/ref/commit/step and
+    # can exceed Google's 127-byte mapped-subject limit. Production pipelines must request
+    # `--subject-claim pipeline_id --claim organization_id`; the immutable pipeline UUID is
+    # both short enough for Google and already restricted by the provider condition below.
+    "google.subject"               = "assertion.pipeline_id"
     "attribute.aud"                = "assertion.aud"
     "attribute.organization_id"    = "assertion.organization_id"
     "attribute.organization_slug"  = "assertion.organization_slug"
@@ -138,9 +150,9 @@ locals {
   # Plans read sensitive state. Bind each plan identity to its repository's environment-shaped
   # OIDC subject rather than every workflow in the repository.
   principal_environment = {
-    bootstrap-plan           = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/bootstrap:environment:plan"
-    github-config-plan       = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/github-config:environment:plan"
-    infrastructure-live-plan = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/infrastructure-live:environment:plan"
+    bootstrap-plan           = "principal://iam.googleapis.com/${local.github_pool_name}/subject/${local.github_immutable_subject_prefixes["bootstrap"]}:environment:plan"
+    github-config-plan       = "principal://iam.googleapis.com/${local.github_pool_name}/subject/${local.github_immutable_subject_prefixes["github-config"]}:environment:plan"
+    infrastructure-live-plan = "principal://iam.googleapis.com/${local.github_pool_name}/subject/${local.github_immutable_subject_prefixes["infrastructure-live"]}:environment:plan"
   }
 
   # Primary bindings are exhaustive: adding a service account without an explicit trust path
@@ -174,10 +186,6 @@ locals {
     "infrastructure-live-plan:drift" = {
       identity  = "infrastructure-live-plan"
       principal = "${local.principal_workflow_prefix["infrastructure-live"]}/.github/workflows/drift.yml@refs/heads/main"
-    }
-    "infrastructure-live-plan:cost" = {
-      identity  = "infrastructure-live-plan"
-      principal = "${local.principal_workflow_prefix["infrastructure-live"]}/.github/workflows/cost.yml@refs/heads/main"
     }
   }
 

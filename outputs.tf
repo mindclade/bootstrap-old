@@ -112,7 +112,7 @@ output "state_bucket_location" {
 output "platform_contract" {
   description = "Versioned Ring-0 identifiers consumed by other control repositories."
   value = {
-    contract_version      = "1.1.0"
+    contract_version      = "1.2.0"
     organization_id       = var.org_id
     billing_account       = var.billing_account
     bootstrap_folder_id   = module.projects.bootstrap_folder_id

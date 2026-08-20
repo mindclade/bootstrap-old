@@ -19,8 +19,9 @@ output "github_wif_providers" {
 output "github_wif_repository_identities" {
   value = {
     for repo, id in local.wif_repositories : repo => {
-      repository    = "${var.github_org}/${repo}"
-      repository_id = id
+      repository          = "${var.github_org}/${repo}"
+      repository_owner_id = var.github_org_id
+      repository_id       = id
     }
   }
 }

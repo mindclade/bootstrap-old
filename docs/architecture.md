@@ -49,6 +49,7 @@ The diagram shows Ring-0 creation, its supported output contract, and downstream
 handoffs.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
 flowchart TD
     HR["Named recovery identity"]
     PR["modules/projects<br/>folder, seed project, CI project, KMS"]
@@ -105,7 +106,10 @@ implementation paths directly.
 
 - Human recovery access requires a named identity protected by phishing-resistant MFA.
 - Automation uses GitHub OIDC and WIF; service-account JSON keys are prohibited.
-- WIF providers are repository-isolated and bind immutable GitHub identity claims.
+- WIF providers are repository-isolated and bind immutable GitHub identity claims. Exact
+  subjects use [GitHub Cloud's post-2026-07-15 immutable default](https://docs.github.com/en/actions/reference/security/oidc#immutable-subject-claims),
+  `repo:OWNER@OWNER-ID/REPO@REPO-ID:context` default format; legacy name-only subjects are not
+  accepted.
 - Plan identities require the exact protected `plan` environment subject. Scheduled read-only
   consumers have only enumerated `workflow_ref@refs/heads/main` bindings; no automation
   service account accepts a repository-wide principal.
@@ -113,6 +117,9 @@ implementation paths directly.
   `job_workflow_ref`/`job_workflow_sha` claims are mapped only on the monorepo signer provider.
 - The monorepo GitHub provider accepts only the protected `release` subject executing the
   released `reusable-binauthz-sign.yml@v3.0.0`; builders use separate Buildkite trust.
+- Buildkite jobs request tokens with `--subject-claim pipeline_id --claim organization_id` and
+  the exact provider resource name as audience. Google maps the immutable pipeline UUID—not
+  Buildkite's potentially overlong compound default subject—to `google.subject`.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
 - The break-glass account has no standing organization role. Temporary grants are conditional,
@@ -123,10 +130,12 @@ implementation paths directly.
 
 The primary state object is protected by narrow IAM, native locking, versioning, soft delete,
 CMEK, and lifecycle controls. Plan and drift identities can read state, but their only object
-write authority is an IAM-conditioned `roles/storage.objectAdmin` grant whose resource name
-must end in `.tflock`; this lets the GCS backend acquire and release its native lock without
-allowing those identities to modify `.tfstate`. An independent cross-location replica provides
-a separate recovery source and may lag by one transfer interval.
+write authority is an IAM-conditioned `roles/storage.objectAdmin` grant whose resource type is
+`storage.googleapis.com/Object` and whose name must end in `.tflock`; this lets the GCS backend
+acquire and release its native lock without allowing those identities to modify `.tfstate`.
+Their unconditional `roles/storage.objectViewer` grant supplies state reads and object listing,
+so the conditioned role does not need to authorize bucket-level list requests. An independent
+cross-location replica provides a separate recovery source and may lag by one transfer interval.
 
 Recovery proceeds from least invasive to most invasive:
 

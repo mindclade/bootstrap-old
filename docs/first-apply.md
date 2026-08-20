@@ -85,12 +85,32 @@ rm -f bootstrap-outputs.json remote-state-verification.json
 Confirm no copies remain in shell history, cloud-sync folders, downloads, editor backups, or
 unapproved artifact stores.
 
-## 6. Enable protected automation
+## 6. Activate native-lock IAM without deadlocking
+
+A greenfield first apply creates the read-only state grant and its typed `.tflock`-only grant
+together, before automation takes over. An existing estate may have plan and drift identities
+with only `roles/storage.objectViewer`; those identities cannot create the GCS backend lock
+object and therefore cannot produce the plan that adds their own lock permission.
+
+For an existing estate, freeze bootstrap changes and use a named, explicitly approved recovery
+operator or apply identity that already has bucket object administration to pre-grant the exact
+Terraform-managed conditional binding before enabling mandatory locking in plan workflows. The
+condition must require both `resource.type == 'storage.googleapis.com/Object'` and a resource
+name ending in `.tflock`. Record the approver, bucket, service-account identity, condition, and
+audit event. Then run the protected locked plan, apply the exact reviewed change so Terraform
+records the binding, and revoke any temporary elevated human grant. Do not remove the
+`.tflock` binding itself: it is durable desired state.
+
+Qualification requires a locked plan to succeed, lock creation/deletion to appear in audit
+logs, and a direct write by the plan identity to the `.tfstate` object to remain denied. Never
+temporarily restore `-lock=false` to work around a failed rollout.
+
+## 7. Enable protected automation
 
 Configure in `github-config`/GitHub Enterprise:
 
 - protected `main` and critical paths;
-- protected `plan`, `bootstrap`, and `break-glass` environments;
+- protected `plan`, `bootstrap`, `bootstrap-recovery-read`, and `break-glass` environments;
 - `WIF_PROVIDER_PLAN` / `WIF_PROVIDER_APPLY`;
 - `artifact_signer_wif_provider` as `WIF_PROVIDER_SIGNER`; the matching
   `artifact_signer_principal` is consumed only by `infrastructure-live` when binding its
@@ -112,11 +132,11 @@ from this point onward.
 The `plan` environment is part of the Google Cloud identity, not presentation-only metadata.
 Record successful plan token exchange plus failed exchange from an arbitrary workflow and
 branch. The scheduled recovery drill authenticates through its separate exact-main workflow
-binding while its optional state inspection waits behind the governed `bootstrap` environment.
+binding while retaining the dedicated governed `bootstrap-recovery-read` environment.
 
 Also verify that a credentialed plan can create and delete only its GCS backend `.tflock`
 object. The plan identity must be able to read state and complete with locking enabled, but a
-direct write to the `.tfstate` object must be denied by IAM.
+direct write to the `.tfstate` object must remain denied by IAM.
 
 ## Prohibited
 

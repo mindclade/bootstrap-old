@@ -19,30 +19,35 @@ ERRORS=[]
 
 def error(msg): ERRORS.append(msg)
 
-def repository_paths() -> list[Path]:
-    """Return version-controlled paths in a checkout, or all paths in an exported tree."""
+def delivery_paths() -> list[Path]:
+    """Return tracked and untracked delivery paths, excluding standard ignored files."""
     if (ROOT / ".git").exists():
         result = subprocess.run(
-            ["git", "-C", str(ROOT), "ls-files", "-z"],
+            [
+                "git", "-C", str(ROOT), "ls-files",
+                "--cached", "--others", "--exclude-standard", "-z",
+            ],
             check=True,
             capture_output=True,
         )
         return [ROOT / raw.decode("utf-8", errors="surrogateescape") for raw in result.stdout.split(b"\0") if raw]
     return list(ROOT.rglob("*"))
 
-TRACKED_PATHS = repository_paths()
-TRACKED_RELATIVE = {p.relative_to(ROOT).as_posix() for p in TRACKED_PATHS}
+DELIVERY_PATHS = delivery_paths()
+DELIVERY_RELATIVE = {p.relative_to(ROOT).as_posix() for p in DELIVERY_PATHS}
 LEGACY_GITHUB_IDENTITIES = (
     "Mind" + "clade/",
     "github.com/" + "Mind" + "clade",
     "/orgs/" + "Mind" + "clade",
 )
 
-def tracked_prefix_exists(relative: str) -> bool:
+def delivery_prefix_exists(relative: str) -> bool:
     prefix = relative.rstrip("/")
-    return prefix in TRACKED_RELATIVE or any(path.startswith(prefix + "/") for path in TRACKED_RELATIVE)
+    return prefix in DELIVERY_RELATIVE or any(path.startswith(prefix + "/") for path in DELIVERY_RELATIVE)
 
 repository_contract = (ROOT / "contracts/repository.yaml").read_text("utf-8", errors="ignore")
+if not re.search(r"(?m)^\s+merge_queue:\s+false\s*$", repository_contract):
+    error("enterprise-control repository contract must not require the production merge queue")
 for canonical_url in (
     "https://github.com/enterprises/mindclade",
     "https://github.com/mindclade",
@@ -55,13 +60,13 @@ for canonical_url in (
 for rel in CONTRACT["required_paths"]:
     if not (ROOT/rel).exists(): error(f"missing required path: {rel}")
 for rel in CONTRACT["forbidden_paths"]:
-    if tracked_prefix_exists(rel): error(f"forbidden tracked path present: {rel}")
-for p in TRACKED_PATHS:
+    if delivery_prefix_exists(rel): error(f"forbidden delivery path present: {rel}")
+for p in DELIVERY_PATHS:
     relative = p.relative_to(ROOT)
     if any(part in {".terraform",".terragrunt-cache","__MACOSX","__pycache__"} for part in relative.parts):
-        error(f"local/cache artifact is tracked: {relative}")
+        error(f"local/cache artifact is present in delivery: {relative}")
     if p.name.startswith("._") or ".tfstate" in p.name or "tfplan" in p.name or p.suffix == ".pyc":
-        error(f"generated/sensitive artifact is tracked: {relative}")
+        error(f"generated/sensitive artifact is present in delivery: {relative}")
     if p.is_symlink(): error(f"symlink forbidden in delivery: {relative}")
     if p.is_file() and p.stat().st_size <= 2_000_000:
         text = p.read_text("utf-8", errors="ignore")
@@ -84,7 +89,7 @@ secret_patterns=[
     re.compile(r"AIza[0-9A-Za-z_-]{35}"),
     re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
 ]
-for p in TRACKED_PATHS:
+for p in DELIVERY_PATHS:
     if not p.is_file() or p.stat().st_size>2_000_000: continue
     try:text=p.read_text("utf-8",errors="ignore")
     except:continue
@@ -107,6 +112,10 @@ else:
     outputs=(ROOT/"outputs.tf").read_text("utf-8",errors="ignore")
     if 'output "platform_contract"' not in outputs:
         error("missing versioned platform_contract Terraform output")
+    if not re.search(
+        rf'contract_version\s*=\s*{re.escape(json.dumps(contract_version))}', outputs
+    ):
+        error("platform_contract Terraform output version differs from its descriptor")
     for field in output_schema.get("required",[]):
         if field not in outputs:
             error(f"platform_contract output is missing schema field: {field}")
@@ -124,6 +133,12 @@ if REPOSITORY=="bootstrap":
     for identity in ("artifact-builder", "artifact-qualifier", "artifact-signer", "artifact-promoter"):
         if identity in combined:
             error(f"normal-plane supply-chain identity leaked into Ring 0: {identity}")
+    wif=(ROOT/"modules/identity/wif.tf").read_text("utf-8",errors="ignore")
+    buildkite=wif.split('resource "google_iam_workload_identity_pool_provider" "buildkite"',1)[-1]
+    if '"google.subject"               = "assertion.pipeline_id"' not in buildkite:
+        error("Buildkite WIF does not map the bounded immutable pipeline ID as its subject")
+    if '"google.subject"               = "assertion.sub"' in buildkite:
+        error("Buildkite WIF maps the potentially overlong compound default subject")
 elif REPOSITORY=="github-config":
     text=(ROOT/"catalog/repositories.yaml").read_text("utf-8",errors="ignore")
     for repo in (".github","bootstrap","github-config","infrastructure-live","gitops","mindclade-internal-monorepo"):

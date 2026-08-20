@@ -22,4 +22,4 @@
 
 ## Operating invariant
 
-All changes are pull-request reviewed, subject to CODEOWNERS and required checks, merged through the configured queue for protected repositories, and performed by narrowly scoped identities. Live-system qualification evidence is separate from source completeness.
+All changes are pull-request reviewed, subject to CODEOWNERS and required checks, and performed by narrowly scoped identities. The enterprise-control class deliberately does not use the production merge queue; its critical changes require qualified independent approvals instead. Live-system qualification evidence is separate from source completeness.

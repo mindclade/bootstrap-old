@@ -19,10 +19,10 @@ plan-local:
 	terraform plan -lock-timeout=20m
 
 license-headers:
-	bash scripts/license-header-check.sh --check
+	python3 scripts/license-header-check.py --check
 
 license-headers-fix:
-	bash scripts/license-header-check.sh --fix
+	python3 scripts/license-header-check.py --fix
 
 .PHONY: validate-production-contract
 validate-production-contract:

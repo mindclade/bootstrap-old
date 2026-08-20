@@ -8,9 +8,9 @@ root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
 bash scripts/verify-no-local-state.sh
-bash scripts/verify-wif-policy.sh
-bash scripts/verify-state-policy.sh
-bash scripts/license-header-check.sh --check
+python3 scripts/verify-wif-policy.py
+python3 scripts/verify-state-policy.py
+python3 scripts/license-header-check.py --check
 
 test -f .github/CODEOWNERS
 test ! -e CODEOWNERS
@@ -22,12 +22,9 @@ test -f modules/identity/automation-secrets.tf
 test -f docs/automation-secret-bootstrap.md
 test -f contracts/outputs.schema.json
 
-python3 - <<'PY_INNER'
-from pathlib import Path
-for path in Path('.').rglob('*'):
-    if '.git' in path.parts:
-        continue
-    if path.is_file() and (path.name.startswith('._') or path.name == '.DS_Store'):
-        raise SystemExit(f'forbidden platform metadata: {path}')
-print('bootstrap repository invariants passed')
-PY_INNER
+metadata="$(find . -path './.git' -prune -o -type f \( -name '._*' -o -name '.DS_Store' \) -print -quit)"
+if [[ -n "$metadata" ]]; then
+  echo "forbidden platform metadata: $metadata" >&2
+  exit 1
+fi
+echo 'bootstrap repository invariants passed'

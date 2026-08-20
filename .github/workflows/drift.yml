@@ -48,6 +48,12 @@ jobs:
       id-token: write
       issues: write
     steps:
+      - name: Require the protected main ref before cloud authentication
+        run: |
+          if ! [[ "${GITHUB_REF}" == "refs/heads/main" ]]; then
+            echo "::error::Cloud-backed drift runs only from refs/heads/main."
+            exit 1
+          fi
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false

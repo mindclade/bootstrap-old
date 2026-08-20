@@ -22,6 +22,7 @@ The diagram shows the only supported cold-start sequence, from externally owned 
 application reconciliation.
 
 ```mermaid
+%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
 flowchart TD
     EX["External ownership<br/>GitHub Enterprise, Cloud Identity, billing, registrar"]
     BG["Audited break-glass path"]

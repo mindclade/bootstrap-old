@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.1.0.schema.json",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.2.0.schema.json",
   "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.1.0"
+      "const": "1.2.0"
     },
     "organization_id": {
       "type": "string",
@@ -291,19 +291,24 @@
     },
     "wif_principal": {
       "type": "string",
-      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/repo:mindclade/mindclade-internal-monorepo:environment:release$"
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:environment:release$"
     },
     "repository_identity": {
       "type": "object",
       "additionalProperties": false,
       "required": [
         "repository",
+        "repository_owner_id",
         "repository_id"
       ],
       "properties": {
         "repository": {
           "type": "string",
           "pattern": "^[^/]+/[^/]+$"
+        },
+        "repository_owner_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
         },
         "repository_id": {
           "type": "string",

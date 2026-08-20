@@ -1,22 +1,19 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
-set -euo pipefail
-root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-python3 - "$root" <<'PY'
 from pathlib import Path
 import sys
 
-root = Path(sys.argv[1])
+root = Path(__file__).resolve().parent.parent
 primary = (root / "modules/state/main.tf").read_text()
 replica = (root / "modules/state/replication.tf").read_text()
 seed = (root / "modules/projects/seed.tf").read_text()
 cicd = (root / "modules/projects/cicd.tf").read_text()
 break_glass = (root / "modules/identity/break-glass.tf").read_text()
 variables = (root / "variables.tf").read_text()
+first_apply = (root / "docs/first-apply.md").read_text()
 errors: list[str] = []
 
 
@@ -46,21 +43,37 @@ require(
     replica,
     "read-only bootstrap replica recovery binding",
 )
+reader_marker = 'resource "google_storage_bucket_iam_member" "reader"'
 lock_marker = 'resource "google_storage_bucket_iam_member" "reader_lock_object_admin"'
 writer_marker = 'resource "google_storage_bucket_iam_member" "writer"'
+reader_binding = (
+    primary.split(reader_marker, 1)[1].split(lock_marker, 1)[0]
+    if reader_marker in primary and lock_marker in primary
+    else ""
+)
 lock_binding = (
     primary.split(lock_marker, 1)[1].split(writer_marker, 1)[0]
     if lock_marker in primary and writer_marker in primary
     else ""
 )
+require('role     = "roles/storage.objectViewer"', reader_binding, "unconditional state read/list role")
 for token, label in (
     ('google_storage_bucket_iam_member" "reader_lock_object_admin', "read-only identity lock-object binding"),
     ('role     = "roles/storage.objectAdmin"', "lock-object create/delete role"),
-    ('expression  = "resource.name.endsWith(\'.tflock\')"', "lock-object-only IAM condition"),
+    (
+        'expression  = "resource.type == \'storage.googleapis.com/Object\' && resource.name.endsWith(\'.tflock\')"',
+        "typed lock-object-only IAM condition",
+    ),
 ):
     require(token, primary if token.startswith("google_storage") else lock_binding, label)
 if '.tfstate' in lock_binding:
     errors.append("read-only identity IAM condition permits Terraform state writes")
+for token, label in (
+    ("Activate native-lock IAM without deadlocking", "lock-IAM activation ordering"),
+    ("before enabling mandatory locking", "lock-IAM pre-grant order"),
+    ("must remain denied", "negative state-write activation test"),
+):
+    require(token, first_apply, label)
 for token in (
     "logging_config {",
     'log_actions       = ["FIND", "COPY"]',
@@ -89,4 +102,3 @@ if errors:
         print(f"ERROR: {error}", file=sys.stderr)
     raise SystemExit(1)
 print("bootstrap state, audit, and recovery policy passed")
-PY
