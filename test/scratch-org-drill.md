@@ -60,14 +60,13 @@ Within one week, or it does not happen:
    not the rebuilt org.
 2. **Update the qualification record** in `cold-start.md` with the real stage timings.
 3. **Tear down the scratch org.** Delete the projects, unlink billing, remove the domain.
-4. **Record the result** in report schema v2, publish it through the protected shared DR evidence
-   workflow, and add its immutable URI and SHA-256 to the table below.
+4. **Record the result** in the table below.
 
 ## History
 
-| Date | Primary / observer | Elapsed | Evidence URI / SHA-256 | Findings | Notes |
+| Date | Operator | Elapsed | Blocking questions | Findings | Notes |
 |---|---|---|---|---|---|
-| _(not yet run)_ | | | | | Scheduled date and objectives are in `docs/drill-program.md`; no qualification is claimed |
+| _(not yet run)_ | | | | | First drill due within 12 months of the first production apply |
 
 ## A note on why this is worth a day
 

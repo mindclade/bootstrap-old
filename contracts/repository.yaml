@@ -25,7 +25,6 @@ forbidden_authority:
     - gke
     - kubernetes-desired-state
 required_paths:
-    - AGENTS.md
     - modules/state
     - modules/identity
     - modules/projects

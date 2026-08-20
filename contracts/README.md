@@ -4,9 +4,9 @@ The `platform_contract` Terraform output is the only supported machine interface
 It exports non-secret state, federation, recovery, and automation-identity identifiers.
 Consuming repositories must not read bootstrap implementation details or remote state directly.
 
-Contract `1.1.0` added the signer-only GitHub trust tuple: `WIF_PROVIDER_SIGNER`, the exact
+Contract `1.1.0` adds the signer-only GitHub trust tuple: `WIF_PROVIDER_SIGNER`, the exact
 protected-release principal for the normal-plane signer service account, and the immutable
-`v4.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
+`v3.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
 roles remain owned by `infrastructure-live`; bootstrap owns only the federation trust anchor.
 
 Contract `1.2.0` moves every GitHub principal to GitHub Cloud's immutable default subject
@@ -15,11 +15,6 @@ repository identity. Consumers must reject the pre-2026 name-only signer princip
 federation maps the immutable pipeline UUID to Google's bounded subject and requires callers to
 request the `pipeline_id` subject plus `organization_id` claim; the existing provider output is
 the required token audience.
-
-Contract `1.3.0` adds `artifact_release_identities`: distinct canary, builder,
-qualification-reader, qualifier, signer, and promoter provider/principal contracts. Every path
-binds a protected-main push, exact caller, exact v4 reusable workflow, and immutable repository
-IDs. Buildkite activation is prohibited. Normal-plane service accounts remain outside Ring 0.
 
 Retrieve and validate the value after an approved apply:
 

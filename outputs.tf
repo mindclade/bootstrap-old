@@ -65,11 +65,6 @@ output "artifact_signer_job_workflow_ref" {
   value       = module.identity.artifact_signer_job_workflow_ref
 }
 
-output "artifact_release_identities" {
-  description = "Capability-specific ARC release trust contract for infrastructure-live."
-  value       = module.identity.artifact_release_identities
-}
-
 output "buildkite_wif_pool_name" {
   value = module.identity.buildkite_wif_pool_name
 }
@@ -117,7 +112,7 @@ output "state_bucket_location" {
 output "platform_contract" {
   description = "Versioned Ring-0 identifiers consumed by other control repositories."
   value = {
-    contract_version      = "1.3.0"
+    contract_version      = "1.2.0"
     organization_id       = var.org_id
     billing_account       = var.billing_account
     bootstrap_folder_id   = module.projects.bootstrap_folder_id
@@ -138,7 +133,6 @@ output "platform_contract" {
         principal                  = module.identity.artifact_signer_principal
         job_workflow_ref           = module.identity.artifact_signer_job_workflow_ref
       }
-      artifact_release_identities = module.identity.artifact_release_identities
     }
     buildkite = {
       enabled                    = var.enable_buildkite_wif
