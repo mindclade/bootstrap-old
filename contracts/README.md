@@ -21,11 +21,6 @@ qualification-reader, qualifier, signer, and promoter provider/principal contrac
 binds a protected-main push, exact caller, exact v4 reusable workflow, and immutable repository
 IDs. Buildkite activation is prohibited. Normal-plane service accounts remain outside Ring 0.
 
-Contract `1.4.0` adds `dr_evidence_identity`: one capability-specific provider and eight exact
-scratch/staging principals for the four repositories that own recovery drills. It accepts only a
-manual dispatch from each repository's protected `main` caller and the immutable v4 shared evidence
-workflow. The normal-plane writer service account and evidence bucket remain outside Ring 0.
-
 Retrieve and validate the value after an approved apply:
 
 ```sh

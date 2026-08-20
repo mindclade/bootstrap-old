@@ -70,11 +70,6 @@ output "artifact_release_identities" {
   value       = module.identity.artifact_release_identities
 }
 
-output "dr_evidence_identity" {
-  description = "Protected scratch/staging WIF contract consumed by the normal-plane DR evidence writer."
-  value       = module.identity.dr_evidence_identity
-}
-
 output "buildkite_wif_pool_name" {
   value = module.identity.buildkite_wif_pool_name
 }
@@ -122,7 +117,7 @@ output "state_bucket_location" {
 output "platform_contract" {
   description = "Versioned Ring-0 identifiers consumed by other control repositories."
   value = {
-    contract_version      = "1.4.0"
+    contract_version      = "1.3.0"
     organization_id       = var.org_id
     billing_account       = var.billing_account
     bootstrap_folder_id   = module.projects.bootstrap_folder_id
@@ -144,7 +139,6 @@ output "platform_contract" {
         job_workflow_ref           = module.identity.artifact_signer_job_workflow_ref
       }
       artifact_release_identities = module.identity.artifact_release_identities
-      dr_evidence_identity        = module.identity.dr_evidence_identity
     }
     buildkite = {
       enabled                    = var.enable_buildkite_wif

@@ -156,18 +156,6 @@ for token, label in (
         'github_signer_principal = "principal://iam.googleapis.com/',
         "exact signer principal",
     ),
-    (
-        'resource "google_iam_workload_identity_pool_provider" "github_dr_evidence"',
-        "dedicated DR evidence provider",
-    ),
-    (
-        'assertion.event_name == \\"workflow_dispatch\\"',
-        "manual-only DR evidence dispatch",
-    ),
-    (
-        "reusable-dr-evidence.yml@refs/tags/v4.0.0",
-        "immutable DR evidence workflow",
-    ),
 ):
     require(token, wif, label)
 outputs = (root / "outputs.tf").read_text()
@@ -178,7 +166,6 @@ for name in (
     "artifact_signer_principal",
     "artifact_signer_job_workflow_ref",
     "artifact_release_identities",
-    "dr_evidence_identity",
 ):
     require(f'output "{name}"', outputs, f"root signer contract output {name}")
     require(

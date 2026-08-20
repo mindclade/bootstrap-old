@@ -68,18 +68,6 @@ output "artifact_release_identities" {
   )
 }
 
-output "dr_evidence_identity" {
-  description = "Exact WIF provider and protected-environment principals for append-only DR evidence publication."
-  value = {
-    workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github_dr_evidence.workload_identity_pool_provider_id}"
-    job_workflow_ref           = local.github_dr_evidence_job_workflow_ref
-    principals = {
-      for key, contract in local.github_dr_evidence_subjects : key =>
-      "principal://iam.googleapis.com/${local.github_pool_name}/subject/dr-evidence:${contract.subject}"
-    }
-  }
-}
-
 output "buildkite_wif_pool_name" {
   value = local.buildkite_pool_name
 }
