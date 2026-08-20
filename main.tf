@@ -18,6 +18,7 @@ module "projects" {
   prefix                     = var.prefix
   suffix                     = module.naming.suffix
   state_kms_location         = var.state_kms_location
+  automation_secret_location = var.automation_secret_location
   state_replica_kms_location = var.state_replica_kms_location
   kms_protection_level       = var.kms_protection_level
   labels                     = var.labels
@@ -37,7 +38,7 @@ module "identity" {
   cicd_project_number = module.projects.cicd_project_number
 
   automation_secret_kms_key_id = module.projects.automation_secret_kms_key_id
-  automation_secret_location   = var.state_kms_location
+  automation_secret_location   = var.automation_secret_location
 
   github_org            = var.github_org
   github_org_id         = var.github_org_id

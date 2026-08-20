@@ -5,9 +5,11 @@
 locals {
   service_accounts = {
     bootstrap-plan = {
-      display   = "Bootstrap speculative plan"
-      repo      = "bootstrap"
-      org_roles = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
+      display = "Bootstrap speculative plan"
+      repo    = "bootstrap"
+      # Browser supplies the hierarchy-only folders.get/list, organizations.get, and
+      # projects.get/list permissions needed to refresh the bootstrap folder and projects.
+      org_roles = ["roles/browser", "roles/iam.securityReviewer"]
       project_roles = {
         seed = ["roles/viewer"]
         cicd = ["roles/viewer"]
@@ -16,7 +18,7 @@ locals {
     bootstrap-drift = {
       display   = "Bootstrap read-only drift"
       repo      = "bootstrap"
-      org_roles = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
+      org_roles = ["roles/browser", "roles/iam.securityReviewer"]
       project_roles = {
         seed = ["roles/viewer"]
         cicd = ["roles/viewer"]
@@ -48,9 +50,13 @@ locals {
       }
     }
     github-config-plan = {
-      display   = "GitHub configuration speculative plan"
-      repo      = "github-config"
-      org_roles = ["roles/cloudidentity.groups.readonly"]
+      display = "GitHub configuration speculative plan"
+      repo    = "github-config"
+      # Cloud Identity Groups API authorization is administered in Google Workspace/Cloud
+      # Identity, not through a Resource Manager organization IAM binding. Keep this account
+      # free of unsupported organization roles; docs/cloud-identity-authorization.md defines
+      # the manual fail-closed export and separately approved delegated-admin paths.
+      org_roles = []
       project_roles = {
         seed = ["roles/viewer"]
       }
@@ -176,6 +182,24 @@ resource "google_billing_account_iam_member" "bootstrap_apply" {
   billing_account_id = var.billing_account
   role               = "roles/billing.user"
   member             = "serviceAccount:${google_service_account.this["bootstrap-apply"].email}"
+}
+
+# Planning and drift refresh billing-backed project resources but must never link projects or
+# change billing. Billing Account Viewer supplies billing.accounts.get/getIamPolicy without the
+# billing.resourceAssociations.create permission held by Billing Account User.
+locals {
+  bootstrap_billing_viewers = toset([
+    "bootstrap-plan",
+    "bootstrap-drift",
+  ])
+}
+
+resource "google_billing_account_iam_member" "bootstrap_read" {
+  for_each = local.bootstrap_billing_viewers
+
+  billing_account_id = var.billing_account
+  role               = "roles/billing.viewer"
+  member             = "serviceAccount:${google_service_account.this[each.key].email}"
 }
 
 locals {

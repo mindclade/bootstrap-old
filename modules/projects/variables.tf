@@ -9,6 +9,7 @@ variable "billing_account" { type = string }
 variable "prefix" { type = string }
 variable "suffix" { type = string }
 variable "state_kms_location" { type = string }
+variable "automation_secret_location" { type = string }
 variable "state_replica_kms_location" { type = string }
 variable "kms_protection_level" { type = string }
 variable "labels" { type = map(string) }

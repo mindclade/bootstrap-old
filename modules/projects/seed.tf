@@ -61,12 +61,31 @@ resource "google_kms_crypto_key" "state_primary" {
   }
 }
 
-# Ring-0 automation secrets are limited to credentials needed to read the private
-# Terraform module source before infrastructure-live can create normal security
-# projects. Secret payloads are injected out-of-band and never enter Terraform state.
-resource "google_kms_crypto_key" "automation_secrets" {
+# A partially completed first apply may have created the original automation-secrets key in
+# the `us` state key ring before the configured global Secret Manager resource rejected that
+# replica location. Preserve the key in Google Cloud without retaining a dead state owner; it
+# never encrypted a secret version because the secret container could not be created.
+removed {
+  from = google_kms_crypto_key.automation_secrets
+
+  lifecycle {
+    destroy = false
+  }
+}
+
+# Ring-0 automation secrets use a dedicated regional key ring. Secret Manager requires a
+# user-managed replica's CMEK to be in exactly the same supported location as the replica;
+# state uses a separate multi-region key and must not be reused here.
+resource "google_kms_key_ring" "automation_secrets" {
+  project    = google_project.seed.project_id
+  name       = "${var.prefix}-bootstrap-automation-secrets"
+  location   = var.automation_secret_location
+  depends_on = [google_project_service.seed]
+}
+
+resource "google_kms_crypto_key" "automation_secrets_regional" {
   name            = "automation-secrets"
-  key_ring        = google_kms_key_ring.state_primary.id
+  key_ring        = google_kms_key_ring.automation_secrets.id
   purpose         = "ENCRYPT_DECRYPT"
   rotation_period = "7776000s"
 
