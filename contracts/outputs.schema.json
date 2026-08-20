@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.3.0.schema.json",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.4.0.schema.json",
   "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.3.0"
+      "const": "1.4.0"
     },
     "organization_id": {
       "type": "string",
@@ -70,7 +70,8 @@
         "workload_identity_providers",
         "repository_identities",
         "artifact_signer",
-        "artifact_release_identities"
+        "artifact_release_identities",
+        "dr_evidence_identity"
       ],
       "properties": {
         "organization": {
@@ -174,6 +175,32 @@
             "qualifier": {"$ref": "#/$defs/artifact_release_identity"},
             "signer": {"$ref": "#/$defs/artifact_release_identity"},
             "promoter": {"$ref": "#/$defs/artifact_release_identity"}
+          }
+        },
+        "dr_evidence_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["workload_identity_provider", "job_workflow_ref", "principals"],
+          "properties": {
+            "workload_identity_provider": {"$ref": "#/$defs/wif_provider"},
+            "job_workflow_ref": {
+              "const": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v4.0.0"
+            },
+            "principals": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bootstrap:scratch", "bootstrap:staging", "github-config:scratch", "github-config:staging", "infrastructure-live:scratch", "infrastructure-live:staging", "gitops:scratch", "gitops:staging"],
+              "properties": {
+                "bootstrap:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "bootstrap:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "github-config:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "github-config:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "infrastructure-live:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "infrastructure-live:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "gitops:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "gitops:staging": {"$ref": "#/$defs/dr_evidence_principal"}
+              }
+            }
           }
         }
       }
@@ -311,6 +338,10 @@
     "wif_principal": {
       "type": "string",
       "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/(arc-(canary|builder|qualification-reader|qualifier|promoter):)?repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:(environment:release|ref:refs/heads/main)$"
+    },
+    "dr_evidence_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/dr-evidence:repo:mindclade@[0-9]+/(bootstrap|github-config|infrastructure-live|gitops)@[0-9]+:environment:(scratch|staging)$"
     },
     "artifact_release_identity": {
       "type": "object",
