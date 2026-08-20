@@ -130,7 +130,7 @@ for token, text, label in (
         "dedicated automation-secret key ring",
     ),
     (
-        "location   = var.automation_secret_location",
+        "location = var.automation_secret_location",
         seed,
         "regional automation-secret key ring location",
     ),
@@ -205,6 +205,39 @@ for service in ('"iam.googleapis.com"', '"sts.googleapis.com"'):
 require(
     '"iam.googleapis.com"', seed, "IAM-backed service-account credential audit logging"
 )
+require(
+    '"orgpolicy.googleapis.com"',
+    seed,
+    "seed Org Policy API quota service",
+)
+
+narrow_kms_dependency = (
+    'project  = google_project_service.seed["cloudkms.googleapis.com"].project'
+)
+for key_ring in ("state_primary", "automation_secrets", "state_replica"):
+    marker = f'resource "google_kms_key_ring" "{key_ring}"'
+    block = seed.split(marker, 1)[-1].split("\n}", 1)[0] if marker in seed else ""
+    require(
+        narrow_kms_dependency,
+        block,
+        f"service-specific Cloud KMS dependency for {key_ring}",
+    )
+
+storage_service_agent = (
+    'member        = "serviceAccount:service-${google_project.seed.number}'
+    '@gs-project-accounts.iam.gserviceaccount.com"'
+)
+if seed.count(storage_service_agent) != 2:
+    errors.append("state KMS bindings must derive the exact GCS service agent twice")
+if seed.count(
+    'depends_on = [google_project_service.seed["storage.googleapis.com"]]'
+) != 2:
+    errors.append("state KMS bindings must wait only for the Storage API")
+if 'data "google_storage_project_service_account" "seed"' in seed:
+    errors.append("state KMS bindings retain an apply-time Storage service-agent lookup")
+if "depends_on = [google_project_service.seed]" in seed:
+    errors.append("seed resources retain a broad dependency on every project service")
+
 if (
     '"iamcredentials.googleapis.com"'
     in seed.split('resource "google_project_iam_audit_config" "ring0_data_access"', 1)[
