@@ -88,6 +88,11 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   }
 }
 
+moved {
+  from = google_iam_workload_identity_pool_provider.github_signer_legacy[0]
+  to   = google_iam_workload_identity_pool_provider.github["mindclade-internal-monorepo"]
+}
+
 resource "google_iam_workload_identity_pool" "buildkite" {
   count = var.enable_buildkite_wif ? 1 : 0
 
@@ -99,6 +104,25 @@ resource "google_iam_workload_identity_pool" "buildkite" {
 
 locals {
   buildkite_provider_audience = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/buildkite/providers/buildkite"
+  buildkite_pipeline_step_condition = join(" || ", [
+    for pipeline_id, step_keys in var.buildkite_pipeline_step_contracts :
+    "(assertion.pipeline_id == ${jsonencode(pipeline_id)} && assertion.step_key in ${jsonencode(sort(tolist(step_keys)))})"
+  ])
+}
+
+check "buildkite_pipeline_step_contract_is_exact" {
+  assert {
+    condition = !var.enable_buildkite_wif || (
+      toset(keys(var.buildkite_pipeline_step_contracts)) == var.buildkite_pipeline_ids &&
+      toset(flatten([for _, steps in var.buildkite_pipeline_step_contracts : tolist(steps)])) == toset([
+        "artifact-build",
+        "artifact-qualify",
+        "artifact-promote",
+      ]) &&
+      length(flatten([for _, steps in var.buildkite_pipeline_step_contracts : tolist(steps)])) == 3
+    )
+    error_message = "Buildkite WIF requires every pipeline UUID to have a contract and each artifact-build, artifact-qualify, and artifact-promote identity exactly once."
+  }
 }
 
 resource "google_iam_workload_identity_pool_provider" "buildkite" {
@@ -121,6 +145,7 @@ resource "google_iam_workload_identity_pool_provider" "buildkite" {
     "attribute.pipeline_id"        = "assertion.pipeline_id"
     "attribute.pipeline_slug"      = "assertion.pipeline_slug"
     "attribute.build_branch"       = "assertion.build_branch"
+    "attribute.build_commit"       = "assertion.build_commit"
     "attribute.step_key"           = "assertion.step_key"
     "attribute.runner_environment" = "assertion.runner_environment"
     "attribute.build_source"       = "assertion.build_source"
@@ -129,6 +154,10 @@ resource "google_iam_workload_identity_pool_provider" "buildkite" {
   attribute_condition = <<-EOT
     assertion.organization_id == "${var.buildkite_organization_id}" &&
     assertion.pipeline_id in ${jsonencode(sort(tolist(var.buildkite_pipeline_ids)))} &&
+    assertion.runner_environment == "self-hosted" &&
+    assertion.build_branch == "main" &&
+    assertion.build_source in ["webhook", "api"] &&
+    (${local.buildkite_pipeline_step_condition}) &&
     assertion.aud == "${local.buildkite_provider_audience}"
   EOT
 

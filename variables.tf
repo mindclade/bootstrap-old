@@ -139,9 +139,12 @@ variable "github_repository_ids" {
   type        = map(string)
   validation {
     condition = alltrue([
-      for name in ["bootstrap", "github-config", "infrastructure-live", "gitops", "mindclade-internal-monorepo"] :
+      for name in ["bootstrap", "github-config", "infrastructure-live", "gitops"] :
       can(regex("^[0-9]+$", lookup(var.github_repository_ids, name, "")))
-    ])
+      ]) && can(regex(
+      "^[0-9]+$",
+      var.github_repository_ids["mindclade-internal-monorepo"],
+    ))
     error_message = "github_repository_ids must contain numeric IDs for every control repository and the monorepo."
   }
 }
@@ -179,6 +182,21 @@ variable "buildkite_pipeline_ids" {
       ])
     )
     error_message = "buildkite_pipeline_ids must contain at least one UUID when Buildkite WIF is enabled."
+  }
+}
+
+variable "buildkite_pipeline_step_contracts" {
+  description = "Immutable Buildkite pipeline UUID to the exact artifact step identities it may federate."
+  type        = map(set(string))
+  default     = {}
+
+  validation {
+    condition = alltrue(flatten([
+      for _, steps in var.buildkite_pipeline_step_contracts : [
+        for step in steps : contains(["artifact-build", "artifact-qualify", "artifact-promote"], step)
+      ]
+    ]))
+    error_message = "Buildkite step contracts may contain only artifact-build, artifact-qualify, and artifact-promote."
   }
 }
 

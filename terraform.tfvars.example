@@ -37,6 +37,7 @@ github_repository_ids = {
 enable_buildkite_wif      = false
 buildkite_organization_id = ""
 buildkite_pipeline_ids    = []
+buildkite_pipeline_step_contracts = {}
 
 break_glass_principals = [
   "founder-recovery@example.net",

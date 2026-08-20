@@ -36,6 +36,7 @@ env:
   TF_VAR_enable_buildkite_wif: ${{ vars.ENABLE_BUILDKITE_WIF || 'false' }}
   TF_VAR_buildkite_organization_id: ${{ vars.BUILDKITE_ORGANIZATION_ID || '' }}
   TF_VAR_buildkite_pipeline_ids: ${{ vars.BUILDKITE_PIPELINE_IDS_JSON || '[]' }}
+  TF_VAR_buildkite_pipeline_step_contracts: ${{ vars.BUILDKITE_PIPELINE_STEP_CONTRACTS_JSON || '{}' }}
   TF_VAR_break_glass_principals: ${{ vars.BREAK_GLASS_PRINCIPALS_JSON || '[]' }}
   TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT || 'security@mindclade.com' }}
 

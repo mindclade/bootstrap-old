@@ -7,7 +7,10 @@
 > prove recovery evidence, and activate keyless automation.
 > **Risk:** critical—this one-time procedure establishes organization-wide state and trust.
 
-The first apply is the only time this repository may use local Terraform state.
+The first apply is the only time this repository may use local Terraform state. The configured
+root backend is GCS, so `terraform init -backend=false` is suitable for validation only: it does
+not initialize a plan-capable local backend. The first plan and apply therefore run from an
+exact clean-commit export that deliberately omits `backend.tf`.
 
 ## Prerequisites
 
@@ -18,42 +21,85 @@ The first apply is the only time this repository may use local Terraform state.
 - A secure local workstation and encrypted operations vault.
 - No service-account JSON keys.
 
-## 1. Prepare and review
+## 1. Prepare an exact backend-free working directory
+
+Start from the reviewed commit in a clean source checkout. Choose a **new** directory on
+approved encrypted, non-cloud-synchronized storage. The helper rejects a dirty checkout, a
+moving or abbreviated commit, an existing destination, a destination inside the repository,
+symlinks, and any exported Terraform backend block. It exports Git objects rather than copying
+the checkout, so local credentials, caches, ignored files, and uncommitted changes cannot enter
+the first-apply directory.
 
 ```sh
-cp terraform.tfvars.example terraform.tfvars
-# Replace every example value; terraform.tfvars remains untracked.
-terraform init -backend=false -input=false
-terraform fmt -check -recursive -diff
-terraform validate
-terraform plan -out=bootstrap-first.tfplan
-terraform show -no-color bootstrap-first.tfplan > bootstrap-first.tfplan.txt
-sha256sum bootstrap-first.tfplan
+SOURCE_ROOT="$(pwd -P)"
+SOURCE_SHA="$(git rev-parse HEAD)"
+FIRST_APPLY_DIR="/approved/encrypted/path/bootstrap-first-apply-${SOURCE_SHA}"
+
+make first-apply-workdir \
+  SOURCE_SHA="${SOURCE_SHA}" \
+  FIRST_APPLY_WORK_DIR="${FIRST_APPLY_DIR}"
+
+test "$(jq -r .source_commit "${FIRST_APPLY_DIR}/.mindclade-first-apply.json")" = "${SOURCE_SHA}"
+test "$(jq -r .backend_omitted "${FIRST_APPLY_DIR}/.mindclade-first-apply.json")" = "true"
+test ! -e "${FIRST_APPLY_DIR}/backend.tf"
 ```
 
-Have a second qualified reviewer inspect the plan, especially folder/project placement, IAM,
-WIF attribute conditions, state-bucket locations, and KMS locations.
+Do not use `/tmp`, a cloud-synchronized directory, or the source checkout for live first-apply
+state. Keep the directory until remote-state migration and independent verification finish.
 
-## 2. Apply locally once
+## 2. Initialize, plan, and review locally
+
+Create the untracked input file **inside the exported directory**, then use the repository-pinned
+toolchain from that directory. Because `backend.tf` is absent, ordinary `terraform init`
+initializes Terraform's local backend.
 
 ```sh
-terraform apply bootstrap-first.tfplan
-terraform output -json > bootstrap-outputs.json
+cp "${FIRST_APPLY_DIR}/terraform.tfvars.example" "${FIRST_APPLY_DIR}/terraform.tfvars"
+# Replace every example value without printing secrets or identifiers into shell history.
+
+terraform -chdir="${FIRST_APPLY_DIR}" init -input=false -lockfile=readonly
+terraform -chdir="${FIRST_APPLY_DIR}" fmt -check -recursive -diff
+terraform -chdir="${FIRST_APPLY_DIR}" validate
+terraform -chdir="${FIRST_APPLY_DIR}" plan -input=false -out=bootstrap-first.tfplan
+terraform -chdir="${FIRST_APPLY_DIR}" show -no-color bootstrap-first.tfplan \
+  > "${FIRST_APPLY_DIR}/bootstrap-first.tfplan.txt"
+sha256sum "${FIRST_APPLY_DIR}/bootstrap-first.tfplan"
+```
+
+Have a second qualified reviewer verify the source SHA marker and inspect the plan, especially
+folder/project placement, IAM, WIF attribute conditions, state-bucket locations, and KMS
+locations.
+
+## 3. Apply locally once
+
+```sh
+terraform -chdir="${FIRST_APPLY_DIR}" apply -input=false bootstrap-first.tfplan
+terraform -chdir="${FIRST_APPLY_DIR}" output -json \
+  > "${FIRST_APPLY_DIR}/bootstrap-outputs.json"
 ```
 
 Store the outputs in the approved encrypted operations vault. They contain identifiers, not
 credentials, but still describe Ring-0 infrastructure.
 
-## 3. Migrate to remote state
+## 4. Add the exact backend and migrate the same state
 
-Read the `state_buckets.bootstrap` output and run:
+Read the `state_buckets.bootstrap` output. Export `backend.tf` from the same reviewed source
+commit—not from the potentially changed working tree—then migrate the local state in place:
 
 ```sh
 STATE_BUCKET="<bootstrap-state-bucket>"
 REPLICA_BUCKET="<bootstrap-replica-bucket>"
-terraform init -migrate-state -input=false -backend-config="bucket=${STATE_BUCKET}"
-terraform state pull > remote-state-verification.json
-terraform plan -lock-timeout=20m
+
+git -C "${SOURCE_ROOT}" show "${SOURCE_SHA}:backend.tf" \
+  > "${FIRST_APPLY_DIR}/backend.tf"
+terraform -chdir="${FIRST_APPLY_DIR}" init \
+  -migrate-state \
+  -input=false \
+  -lockfile=readonly \
+  -backend-config="bucket=${STATE_BUCKET}"
+terraform -chdir="${FIRST_APPLY_DIR}" state pull \
+  > "${FIRST_APPLY_DIR}/remote-state-verification.json"
+terraform -chdir="${FIRST_APPLY_DIR}" plan -input=false -lock-timeout=20m
 ```
 
 The plan must be empty. Verify the remote state object and version history:
@@ -73,26 +119,27 @@ Record the primary generation, replica generation, observed replication lag, and
 lock acquisition/release in the protected bootstrap recovery evidence. A readable bucket is
 not sufficient evidence that state locking and restore behavior work.
 
-## 4. Bootstrap the private-module reader
+## 5. Bootstrap the private-module reader
 
 Before `infrastructure-live` can initialize, inject the GitHub App private key into the empty
 Ring-0 secret container using `docs/automation-secret-bootstrap.md`. The key payload never
 passes through Terraform or GitHub Actions configuration.
 
-## 5. Destroy local copies
+## 6. Destroy local copies
 
 After independent verification:
 
 ```sh
-rm -f terraform.tfstate terraform.tfstate.backup
-rm -f bootstrap-first.tfplan bootstrap-first.tfplan.txt
-rm -f bootstrap-outputs.json remote-state-verification.json
+test "$(jq -r .source_commit "${FIRST_APPLY_DIR}/.mindclade-first-apply.json")" = "${SOURCE_SHA}"
+find "${FIRST_APPLY_DIR}" -maxdepth 2 -type f -print
+# After migration and independent verification, securely remove this exact dedicated directory
+# using the approved workstation procedure.
 ```
 
 Confirm no copies remain in shell history, cloud-sync folders, downloads, editor backups, or
 unapproved artifact stores.
 
-## 6. Activate native-lock IAM without deadlocking
+## 7. Activate native-lock IAM without deadlocking
 
 A greenfield first apply creates the read-only state grant and its typed `.tflock`-only grant
 together, before automation takes over. An existing estate may have plan and drift identities
@@ -112,7 +159,7 @@ Qualification requires a locked plan to succeed, lock creation/deletion to appea
 logs, and a direct write by the plan identity to the `.tfstate` object to remain denied. Never
 temporarily restore `-lock=false` to work around a failed rollout.
 
-## 7. Enable protected automation
+## 8. Enable protected automation
 
 Configure in `github-config`/GitHub Enterprise:
 

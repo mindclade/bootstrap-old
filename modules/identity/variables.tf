@@ -16,5 +16,6 @@ variable "github_repository_ids" { type = map(string) }
 variable "enable_buildkite_wif" { type = bool }
 variable "buildkite_organization_id" { type = string }
 variable "buildkite_pipeline_ids" { type = set(string) }
+variable "buildkite_pipeline_step_contracts" { type = map(set(string)) }
 variable "break_glass_principals" { type = set(string) }
 variable "security_contact" { type = string }

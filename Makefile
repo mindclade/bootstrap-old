@@ -1,4 +1,4 @@
-.PHONY: validate lint fmt fmt-check plan-local license-headers license-headers-fix
+.PHONY: validate lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
 validate: validate-production-contract
 	bash scripts/validate.sh
@@ -14,9 +14,12 @@ fmt:
 fmt-check:
 	terraform fmt -check -recursive -diff
 
-plan-local:
-	terraform init -backend=false
-	terraform plan -lock-timeout=20m
+first-apply-workdir:
+	@test -n "$(SOURCE_SHA)" || { echo "SOURCE_SHA must be the reviewed full commit SHA" >&2; exit 2; }
+	@test -n "$(FIRST_APPLY_WORK_DIR)" || { echo "FIRST_APPLY_WORK_DIR must be a new path on approved encrypted storage" >&2; exit 2; }
+	@python3 scripts/prepare-first-apply.py \
+		--commit "$(SOURCE_SHA)" \
+		--work-dir "$(FIRST_APPLY_WORK_DIR)"
 
 license-headers:
 	python3 scripts/license-header-check.py --check

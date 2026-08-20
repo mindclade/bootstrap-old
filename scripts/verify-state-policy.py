@@ -14,6 +14,8 @@ cicd = (root / "modules/projects/cicd.tf").read_text()
 break_glass = (root / "modules/identity/break-glass.tf").read_text()
 variables = (root / "variables.tf").read_text()
 first_apply = (root / "docs/first-apply.md").read_text()
+prepare_first_apply = (root / "scripts/prepare-first-apply.py").read_text()
+makefile = (root / "Makefile").read_text()
 errors: list[str] = []
 
 
@@ -85,6 +87,34 @@ for token, label in (
     ("must remain denied", "negative state-write activation test"),
 ):
     require(token, first_apply, label)
+
+for token, label in (
+    (
+        "exact clean-commit export that deliberately omits `backend.tf`",
+        "backend-free clean-commit first-apply procedure",
+    ),
+    (
+        'git -C "${SOURCE_ROOT}" show "${SOURCE_SHA}:backend.tf"',
+        "exact-commit backend restoration before migration",
+    ),
+    (
+        'terraform -chdir="${FIRST_APPLY_DIR}" init',
+        "isolated first-apply initialization",
+    ),
+):
+    require(token, first_apply, label)
+if "terraform init -backend=false -input=false\nterraform plan" in first_apply:
+    errors.append("first-apply guide still plans after validation-only backend initialization")
+for token, label in (
+    ('command("status", "--porcelain=v1", "--untracked-files=all")', "clean checkout guard"),
+    ('if relative == "backend.tf"', "root backend omission"),
+    ('--commit must resolve exactly to the checkout\'s current HEAD', "exact HEAD guard"),
+    ('--work-dir already exists', "new work-directory guard"),
+):
+    require(token, prepare_first_apply, label)
+require("first-apply-workdir:", makefile, "safe first-apply Make target")
+if "plan-local:" in makefile or "terraform init -backend=false\n\tterraform plan" in makefile:
+    errors.append("Makefile retains an unsafe local plan target")
 for token in (
     "logging_config {",
     'log_actions       = ["FIND", "COPY"]',

@@ -26,7 +26,7 @@ apply service accounts.
 ## Provision the first version
 
 1. Create a dedicated GitHub App with read-only `Contents` access.
-2. Install it only on `mindclade-internal-monorepo` and the repositories that require module
+2. Install it only on `mindclade` and the repositories that require module
    reads.
 3. Store the App ID as the `TF_APP_ID` non-secret Actions variable through `github-config`.
 4. Obtain the private key through the approved credentials vault and add it directly to

@@ -39,13 +39,17 @@ for repo in (
     "github-config",
     "infrastructure-live",
     "gitops",
-    "mindclade-internal-monorepo",
 ):
     require(
         f'var.github_repository_ids["{repo}"]',
         wif,
         f"immutable repository ID for {repo}",
     )
+require(
+    'var.github_repository_ids["mindclade-internal-monorepo"]',
+    wif,
+    "canonical immutable repository ID for mindclade-internal-monorepo",
+)
 require(
     "github_immutable_subject_prefixes", wif, "immutable default GitHub subject catalog"
 )
@@ -181,6 +185,8 @@ for token in (
     'issuer_uri        = "https://agent.buildkite.com"',
     "assertion.organization_id",
     "assertion.pipeline_id",
+    'assertion.runner_environment == "self-hosted"',
+    "local.buildkite_pipeline_step_condition",
 ):
     require(token, wif)
 require(
@@ -227,6 +233,18 @@ if (
     or "repo:${var.github_org}/${local.github_signer_repository}" in wif
 ):
     errors.append("legacy name-only GitHub subject remains")
+require(
+    'github_signer_repository       = "mindclade-internal-monorepo"',
+    wif,
+    "canonical signer repository",
+)
+require(
+    'to   = google_iam_workload_identity_pool_provider.github["mindclade-internal-monorepo"]',
+    wif,
+    "signer provider state restoration",
+)
+if 'resource "google_iam_workload_identity_pool_provider" "github_signer_legacy"' in wif:
+    errors.append("obsolete alternate-name signer provider remains")
 if "google_secret_manager_secret_version" in all_tf:
     errors.append("secret payload stored in Terraform state")
 
