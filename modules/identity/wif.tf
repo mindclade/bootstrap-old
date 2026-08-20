@@ -76,6 +76,61 @@ locals {
       "assertion.sub.startsWith(${jsonencode("${local.github_immutable_subject_prefixes[repo]}:")})",
     ]))
   }
+
+  # DR evidence is separate from plans, applies, and artifact release. The provider accepts
+  # only standardized callers in repositories that own executable recovery procedures, only
+  # from protected scratch/staging environments, and only through the immutable shared workflow.
+  github_dr_evidence_repositories = {
+    bootstrap           = var.github_repository_ids["bootstrap"]
+    github-config       = var.github_repository_ids["github-config"]
+    infrastructure-live = var.github_repository_ids["infrastructure-live"]
+    gitops              = var.github_repository_ids["gitops"]
+  }
+  github_dr_evidence_audience         = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-dr-evidence"
+  github_dr_evidence_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v4.0.0"
+  github_dr_evidence_subjects = merge([
+    for repo, repository_id in local.github_dr_evidence_repositories : {
+      for environment in ["scratch", "staging"] : "${repo}:${environment}" => {
+        repository    = "${var.github_org}/${repo}"
+        repository_id = repository_id
+        subject       = "${local.github_immutable_subject_prefixes[repo]}:environment:${environment}"
+        workflow_ref  = "${var.github_org}/${repo}/.github/workflows/dr-evidence.yml@refs/heads/main"
+      }
+    }
+  ]...)
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_dr_evidence" {
+  # checkov:skip=CKV_GCP_125:Owner/repository IDs, environment subjects, caller and reusable workflows, event, and audience are exact.
+  project = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-dr-evidence"
+  display_name                       = "DR evidence publisher"
+
+  attribute_mapping = {
+    "google.subject"                = "\"dr-evidence:\" + assertion.sub"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+    "attribute.event_name"          = "assertion.event_name"
+    "attribute.job_workflow_ref"    = "assertion.job_workflow_ref"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.aud == ${jsonencode(local.github_dr_evidence_audience)}",
+    "assertion.event_name == \"workflow_dispatch\"",
+    "assertion.job_workflow_ref == ${jsonencode(local.github_dr_evidence_job_workflow_ref)}",
+    "(${join(" || ", [for contract in values(local.github_dr_evidence_subjects) : "(assertion.repository_id == ${jsonencode(contract.repository_id)} && assertion.repository == ${jsonencode(contract.repository)} && assertion.sub == ${jsonencode(contract.subject)} && assertion.workflow_ref == ${jsonencode(contract.workflow_ref)})"])})",
+  ])
+
+  oidc {
+    issuer_uri        = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [local.github_dr_evidence_audience]
+  }
 }
 
 resource "google_iam_workload_identity_pool_provider" "github_artifact_authority" {
