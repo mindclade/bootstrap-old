@@ -4,7 +4,7 @@
 
 > **Use when:** Ring-0 Terraform state is missing, corrupt, stale, or inaccessible.
 > **Impact:** an incorrect recovery can orphan or replace organization-level resources.
-> **Owner:** bootstrap recovery operator with an independent reviewer.
+> **Primary owner:** bootstrap recovery operator with an independent reviewer.
 > **Escalate:** use [break-glass](break-glass.md) only when ordinary recovery access is insufficient.
 
 This runbook covers Ring-0 bootstrap state only. Stop all applies before beginning.
@@ -100,7 +100,7 @@ terraform force-unlock <LOCK_ID>
 
 Force-unlock only after proving no plan/apply still owns the lock.
 
-## Completion
+## Verify recovery
 
 - run a no-change plan;
 - verify state object generations and replica health;
@@ -113,3 +113,10 @@ Do not resume protected applies until the reviewer accepts the no-change plan, s
 replica comparison, and audit evidence. Escalate unresolved ownership, unexplained drift, or a
 primary/replica mismatch to the incident commander rather than selecting the newest object by
 timestamp alone.
+
+## Escalation and handoff
+
+Hand the incident commander the affected bucket/object, every inspected generation, replica lag,
+audit timeline, imports, state mutations, no-change plan, reviewers, and remaining drift. Escalate a
+missing generation, unexplained live resource, or suspected control-plane compromise before
+restoring any candidate.

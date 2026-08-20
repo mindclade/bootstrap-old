@@ -5,6 +5,7 @@
 > **Audience:** the named bootstrap operator provisioning or rotating the Terraform GitHub App key.
 > **Outcome:** add a Secret Manager version without exposing key material to Terraform, GitHub
 > Actions, repository files, or logs.
+> **Risk:** high—the private key can read protected module source if exposed or overscoped.
 
 `infrastructure-live` consumes private Terraform modules from
 `mindclade/mindclade-internal-monorepo`. A clean organization has no normal security project

@@ -5,6 +5,7 @@
 > **Audience:** platform and security engineers rotating federated CI trust.
 > **Outcome:** move each consumer to a new immutable trust binding while preserving negative
 > authorization guarantees and leaving no legacy principal active.
+> **Risk:** critical—an overly broad binding can grant unintended cloud automation authority.
 
 Normal automation is keyless. Rotate trust by changing WIF providers, repository IDs,
 service-account bindings, and protected-environment policy—not by distributing JSON keys.
@@ -81,3 +82,10 @@ recovery material, and record a post-incident review.
 Run `make validate` before merging configuration changes. If the new path cannot be proven without
 broadening a condition, stop and escalate to the security owner; do not use a wildcard as a
 temporary bridge.
+
+## Roll back or recover
+
+Keep the previous provider and binding only for the approved overlap window. If the new exact
+consumer fails, return callers to the last known-good binding, preserve positive and negative
+exchange evidence, and correct the new trust definition before retrying. Never restore a revoked
+credential suspected of compromise; use [break-glass](break-glass.md) under an incident instead.

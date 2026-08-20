@@ -4,7 +4,7 @@
 
 > **Use when:** the normal protected recovery path cannot restore Ring 0.
 > **Impact:** temporary elevated organization access; every action is incident-scoped and audited.
-> **Owner:** incident commander and named bootstrap recovery operator.
+> **Primary owner:** incident commander and named bootstrap recovery operator.
 > **Escalate:** immediately to security and platform leadership on any undeclared or unlogged use.
 
 Emergency access to recover the Google Cloud control plane. The service account has **no
@@ -93,10 +93,16 @@ Exercise the path at least twice per year using a harmless, five-minute role. Ve
 
 Record drill evidence in the approved incident/recovery system.
 
-## Recovery verification
+## Verify recovery
 
 - The normal protected plan and apply identities authenticate and operate at their intended scope.
 - The exact temporary conditional IAM binding is absent.
 - Audit logs account for every impersonation and administrative action.
 - Alerts were delivered and incident evidence names the operator, watcher, scope, and timestamps.
 - Exposed recovery material is rotated and the permanent corrective action has an owner.
+
+## Escalation and handoff
+
+Hand the incident commander the incident ID, exact IAM condition, operators, action timeline,
+audit-log query, alert evidence, affected resources, revocation proof, and remaining corrective
+work. Escalate any action outside the declaration or any missing audit evidence to security.

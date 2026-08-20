@@ -5,6 +5,7 @@
 > **Audience:** named bootstrap operators establishing Ring 0 in a clean organization.
 > **Outcome:** create bootstrap resources once, migrate immediately to protected remote state,
 > prove recovery evidence, and activate keyless automation.
+> **Risk:** critical—this one-time procedure establishes organization-wide state and trust.
 
 The first apply is the only time this repository may use local Terraform state.
 
@@ -161,3 +162,10 @@ replication.
 If any criterion fails, keep automation disabled and follow [Terraform state recovery](state-recovery.md)
 or [break-glass](break-glass.md) as appropriate. Do not repeat the local first apply against an
 existing estate.
+
+## Roll back or recover
+
+Before state migration, stop and review the local state and live resources rather than repeating an
+apply. After migration, remote state is authoritative: use [Terraform state recovery](state-recovery.md)
+to select a verified generation or reconstruct imports. Never copy an older object over remote state
+without stopping automation, retaining the current generation, and obtaining independent review.

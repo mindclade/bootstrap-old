@@ -105,7 +105,7 @@ identity, network, cluster, storage, backup, and admission prerequisites are hea
 Checkpoint: Argo CD is healthy, desired state is synchronized, policy tests pass, images are
 digest-pinned with complete release evidence, and application health checks pass.
 
-## Close recovery
+## Verify and close recovery
 
 - Revoke every temporary grant explicitly; do not rely on expiry.
 - Rotate any recovery material exposed during the incident.
@@ -113,6 +113,13 @@ digest-pinned with complete release evidence, and application health checks pass
   and verification evidence in the approved system.
 - Open reviewed changes for every code, test, alert, or documentation gap discovered.
 - Run or update the [scratch-organization drill](../test/scratch-org-drill.md).
+
+## Escalation and handoff
+
+At every stage boundary, hand the next owner the incident ID, authoritative commits, state
+generations, account and cluster identities, plans, mutations, verification evidence, exposed
+material, and unresolved risk. Stop the sequence when ownership or evidence is ambiguous; the
+incident commander decides whether to hold, roll back, or authorize reviewed forward recovery.
 
 ## Qualification record
 
