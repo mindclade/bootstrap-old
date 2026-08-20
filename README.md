@@ -1,121 +1,170 @@
 <!-- mindclade-doc: repository-home@2 -->
-<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MONO family). -->
+<!-- Brand source: mindclade/.github-private/mindclade-brand-assets (MC family). -->
 
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/brand/mono-wordmark-dark-1080w.png">
-    <source media="(prefers-color-scheme: light)" srcset="docs/assets/brand/mono-wordmark-1080w.png">
-    <img alt="Mindclade." src="docs/assets/brand/mono-wordmark-1080w.png" width="360">
+    <source media="(prefers-color-scheme: dark)"
+            srcset="docs/assets/brand/mc-lockup-horizontal-dark-1520w.png">
+    <source media="(prefers-color-scheme: light)"
+            srcset="docs/assets/brand/mc-lockup-horizontal-1520w.png">
+    <img alt="Mindclade" src="docs/assets/brand/mc-lockup-horizontal-1520w.png" width="380">
   </picture>
-</p>
-
-<p align="center">
-  <img alt="class: enterprise-control" src="docs/assets/badges/repository-class.svg">
-  <img alt="visibility: private" src="docs/assets/badges/visibility.svg">
-  <img alt="change: pull-request" src="docs/assets/badges/change-model.svg">
-  <img alt="trust: Ring 0" src="docs/assets/badges/trust.svg">
 </p>
 
 # Mindclade · Bootstrap
 
 > **Platform Foundation · Ring 0**
-> Establish the durable state, initial trust, and recovery controls required to rebuild the
-> rest of the Mindclade platform.
+> Durable state, seed projects, workload federation, automation identities, and audited
+> break-glass recovery for the Mindclade control plane.
+
+<p align="center">
+  <img alt="class: enterprise-control"
+       src="https://img.shields.io/badge/class-enterprise--control-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="ring: 0"
+       src="https://img.shields.io/badge/ring-0-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="terraform: 1.9.x"
+       src="https://img.shields.io/badge/terraform-1.9.x-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="license: proprietary"
+       src="https://img.shields.io/badge/license-proprietary-5B5660?style=flat-square&labelColor=201C24">
+</p>
 
 | Repository contract | Value |
 | --- | --- |
+| Enterprise | [`mindclade`](https://github.com/enterprises/mindclade) |
+| Organization | [`mindclade`](https://github.com/mindclade) |
+| Repository index | [Mindclade repositories](https://github.com/orgs/mindclade/repositories) |
+| Repository | [`mindclade/bootstrap`](https://github.com/mindclade/bootstrap) |
 | Class | `enterprise-control` |
 | Visibility | `private` |
-| Change model | `pull-request` |
-| Authority | `ring0-state`<br>`automation-federation`<br>`seed-projects`<br>`break-glass-recovery` |
-| Start here | [`docs/README.md`](docs/README.md) |
+| Change model | Pull request to `main`; protected exact-plan apply |
+| Documentation | [`docs/README.md`](docs/README.md) |
 
-## Mission
-
-`bootstrap` owns the smallest independently recoverable cloud foundation. Platform and
-security engineers use it to establish state storage, automation federation, seed projects,
-and audited break-glass access before any normal-plane infrastructure exists.
+Mindclade's **Ring-0** repository owns only the durable state, seed projects, external
+workload federation, control-plane automation identities, and break-glass recovery needed
+to operate the rest of the enterprise platform.
 
 ## Authority boundary
 
 ### This repository creates
 
-- Protected primary and replica state storage with compatible encryption and retention.
-- Seed projects, repository-isolated automation identities, and GitHub federation for ARC.
-- Recovery identities and alerts that carry no standing operational access.
+- a protected bootstrap folder;
+- a seed/state project and CI federation project;
+- primary and cross-location replica state buckets with location-compatible CMEKs;
+- repository-isolated GitHub Actions WIF providers;
+- a no-standing-permission break-glass account with critical alerting.
 
-### This repository deliberately does not create
+### This repository does not create
 
-- Normal folders, organization policy, networks, workload projects, managed services, or GKE;
-  those belong to `infrastructure-live`.
-- Argo CD or Kubernetes desired state; those belong to `gitops`.
-- Application, model, training, or reusable module source; those belong to the monorepo.
+- normal organization folders, policy, billing governance, SCC, contacts, or log sinks;
+- networks, workload projects, managed services, or GKE;
+- Argo CD, Kubernetes desired state, or application source.
+
+Those authorities remain in `infrastructure-live`, `gitops`, and the internal monorepo.
+## Authority boundary
+
+### This repository creates
+
+- a protected bootstrap folder;
+- a seed/state project and CI federation project;
+- primary and cross-location replica state buckets with location-compatible CMEKs;
+- repository-isolated GitHub Actions WIF providers;
+- a signer-only monorepo provider restricted to the protected `release` environment and the
+  immutable `reusable-binauthz-sign.yml@v3.0.0` workflow identity;
+- optional UUID-scoped Buildkite WIF;
+- separate bootstrap, GitHub-governance, and infrastructure-live automation identities;
+- an empty CMEK-protected module-reader secret container required for clean-room infrastructure initialization;
+- a no-standing-permission break-glass account with critical alerting.
+
+### This repository does not create
+
+- normal organization folders, policy, billing governance, SCC, contacts, or log sinks;
+- networks, workload projects, managed services, or GKE; or
+- artifact signer accounts, KMS signing keys, attestors, or their normal-plane IAM roles; or
+- Argo CD, Kubernetes desired state, or application source.
+
+Those authorities remain in `infrastructure-live`, `gitops`, and the internal monorepo.
 
 ## Quick start
 
-Run the credential-free source checks from the repository root:
+The safe first action is validation, not planning or applying:
 
 ```sh
-nix develop .#ci --command make validate
-nix flake check --no-update-lock-file
+nix develop
+make validate
+make lint
+make fmt-check
 ```
 
-Expected result: Terraform, WIF policy, local-state, repository-contract, formatting, and
-license checks exit successfully. Do not run an apply, state migration, or break-glass action
-from an ordinary development session; use the reviewed procedures linked below.
+Expected result: shell, Terraform, WIF-policy, local-state, repository-contract, and
+license checks pass. `make plan-local` is reserved for the documented first apply or
+recovery path.
 
-## Estate position
+## Lifecycle
 
-The highlighted node is this repository. The table and boundary lists above are the text
-equivalent of the cross-repository authority flow.
+1. Export the exact reviewed commit to a dedicated encrypted work directory without
+   `backend.tf`, then perform the one-time local-backend first apply there.
+2. Migrate local state to the generated GCS bootstrap state bucket.
+3. Securely destroy local state and plan copies.
+4. Configure repository variables and the protected `plan`, `bootstrap`, and recovery-read
+   GitHub environments.
+5. All subsequent plans and applies use keyless GitHub OIDC and exact-plan approval.
 
-```mermaid
-%% current: bootstrap %%
-%%{init: {"theme":"base","themeVariables":{"primaryColor":"#F2EFE8","primaryTextColor":"#201C24","primaryBorderColor":"#B5673F","secondaryColor":"#FBFAF7","tertiaryColor":"#FBFAF7","lineColor":"#5B5660","edgeLabelBackground":"#FBFAF7","clusterBkg":"#FBFAF7","clusterBorder":"#E2DED4"}}}%%
-flowchart LR
-    GHP[".github-private<br/>profile + brand"] --> GH[".github<br/>shared workflows"]
-    GH --> GC["github-config<br/>GitHub governance"]
-    GH --> BS["bootstrap<br/>Ring 0 trust"]
-    BS --> IL["infrastructure-live<br/>cloud foundation"]
-    IL --> GO["gitops<br/>cluster desired state"]
-    MO["internal monorepo<br/>source + evidence"] --> GO
-    GC --> MO
-    classDef current fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:3px;
-    classDef managed fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
-    classDef source fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
-    class BS current;
-    class GH,GC,IL,GO managed;
-    class GHP,MO source;
+## Commands
+
+```sh
+make validate
+make lint
+make fmt-check
+make fmt
+make first-apply-workdir SOURCE_SHA=<full-sha> FIRST_APPLY_WORK_DIR=<new-path>
 ```
 
 ## Repository map
 
-| Path | Purpose |
+| Path | Responsibility |
 | --- | --- |
-| `modules/state/` | State buckets, encryption, retention, replication, and IAM. |
-| `modules/identity/` | Federation, automation identities, and break-glass controls. |
-| `modules/projects/` | Bootstrap folder, seed/state project, and federation project. |
-| `contracts/` | Output schemas and repository authority. |
-| `.github/workflows/` | Validation, exact-plan apply, drift, and recovery drills. |
-| `docs/` | First apply, handoff, recovery, and credential procedures. |
+| `modules/projects/` | Bootstrap folder, seed/state project, CI federation project, APIs, KMS |
+| `modules/identity/` | WIF providers, automation accounts, break-glass controls |
+| `modules/state/` | State buckets, IAM, retention controls, and replication |
+| `contracts/` | Supported output and repository authority contracts |
+| `.github/workflows/` | Plan, protected apply, drift, validation, recovery-drill automation |
+| `docs/` | First apply, operations, handoff, and recovery procedures |
 
-## Change path
+## Documentation and safety
 
-Changes move through a reviewed pull request and credential-free validation. First apply,
-state migration, subsequent exact-plan apply, and recovery each use protected workflows and
-their dedicated approval path. Begin with the [first-apply guide](docs/first-apply.md); preserve
-state and trust rollback instructions with every material change.
+Start at the [documentation home](docs/README.md). Read the
+[first-apply](docs/first-apply.md), [break-glass](docs/break-glass.md),
+[state-recovery](docs/state-recovery.md), and
+[automation-secret-bootstrap](docs/automation-secret-bootstrap.md) procedures before touching
+live Ring-0 state.
 
-## Documentation and support
+Cloud Identity directory reads use the separately governed
+[authorization handoff](docs/cloud-identity-authorization.md); they are not organization IAM.
 
-- [Documentation home](docs/README.md)
-- [Architecture](docs/architecture.md)
-- [First apply](docs/first-apply.md)
-- [Break glass](docs/break-glass.md)
-- [State recovery](docs/state-recovery.md)
-- [Contributing](CONTRIBUTING.md)
+Never commit local state, saved plans, credentials, private keys, or production tfvars. Report
+vulnerabilities through [the security policy](SECURITY.md), never a public issue.
 
 ## Security
 
-Never commit state, plan files, credentials, private keys, sensitive outputs, or production
-variables. Report vulnerabilities through [the private security process](SECURITY.md).
+**Do not open a public issue for a vulnerability.** Report through
+[a private security advisory](https://github.com/mindclade/bootstrap/security/advisories/new)
+or `security@mindclade.com`. Acknowledgement within 2 business days, triage within 5. Full
+policy: [`SECURITY.md`](SECURITY.md).
+
+## License
+
+`LicenseRef-Mindclade-Proprietary` — see [`LICENSE`](LICENSE). First-party configuration
+and policy files carry the shared header defined in
+[`license-header.txt`](license-header.txt).
+
+## Related repositories
+
+| Repository | Holds |
+| --- | --- |
+| [`infrastructure-live`](https://github.com/mindclade/infrastructure-live) | Folders, org policy, governance, networks, workload projects |
+| [`gitops`](https://github.com/mindclade/gitops) | Argo CD and Kubernetes desired state |
+| [`.github`](https://github.com/mindclade/.github) | Organization-wide conventions and canonical policies |
+
+---
+
+

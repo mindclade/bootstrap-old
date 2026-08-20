@@ -1,10 +1,7 @@
-.PHONY: validate validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
-validate: validate-production-contract validate-repository-home
+validate: validate-production-contract
 	bash scripts/validate.sh
-
-validate-repository-home:
-	python3 scripts/validate-repository-home.py --root .
 
 lint:
 	actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml

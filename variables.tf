@@ -164,13 +164,9 @@ variable "github_repository_ids" {
 }
 
 variable "enable_buildkite_wif" {
-  description = "Deprecated transition guard. Buildkite federation cannot be activated after the ARC authority amendment."
+  description = "Create the Buildkite OIDC workload identity pool/provider. Enable after immutable organization and pipeline IDs are known."
   type        = bool
   default     = false
-  validation {
-    condition     = var.enable_buildkite_wif == false
-    error_message = "Buildkite WIF is retired as an authority path; keep enable_buildkite_wif false."
-  }
 }
 
 variable "buildkite_organization_id" {
