@@ -86,15 +86,15 @@ locals {
     infrastructure-live = var.github_repository_ids["infrastructure-live"]
     gitops              = var.github_repository_ids["gitops"]
   }
-  github_dr_evidence_audience = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-dr-evidence"
+  github_dr_evidence_audience         = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-dr-evidence"
   github_dr_evidence_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v4.0.0"
   github_dr_evidence_subjects = merge([
     for repo, repository_id in local.github_dr_evidence_repositories : {
       for environment in ["scratch", "staging"] : "${repo}:${environment}" => {
         repository    = "${var.github_org}/${repo}"
         repository_id = repository_id
-        subject        = "${local.github_immutable_subject_prefixes[repo]}:environment:${environment}"
-        workflow_ref   = "${var.github_org}/${repo}/.github/workflows/dr-evidence.yml@refs/heads/main"
+        subject       = "${local.github_immutable_subject_prefixes[repo]}:environment:${environment}"
+        workflow_ref  = "${var.github_org}/${repo}/.github/workflows/dr-evidence.yml@refs/heads/main"
       }
     }
   ]...)
