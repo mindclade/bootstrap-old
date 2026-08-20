@@ -17,6 +17,17 @@
 > Durable state, seed projects, workload federation, automation identities, and audited
 > break-glass recovery for the Mindclade control plane.
 
+<p align="center">
+  <img alt="class: enterprise-control"
+       src="https://img.shields.io/badge/class-enterprise--control-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="ring: 0"
+       src="https://img.shields.io/badge/ring-0-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="terraform: 1.9.x"
+       src="https://img.shields.io/badge/terraform-1.9.x-B5673F?style=flat-square&labelColor=201C24">
+  <img alt="license: proprietary"
+       src="https://img.shields.io/badge/license-proprietary-5B5660?style=flat-square&labelColor=201C24">
+</p>
+
 | Repository contract | Value |
 | --- | --- |
 | Enterprise | [`mindclade`](https://github.com/enterprises/mindclade) |
