@@ -10,6 +10,11 @@ Workload Identity Federation authenticates `github-config` as that service accou
 Cloud Identity Groups API authorizes directory reads through Google Workspace/Cloud Identity
 administration. These are separate control planes.
 
+Bootstrap enables `cloudidentity.googleapis.com` in the CI trust project only so an approved
+directory administrator can name that project as the API quota consumer. Enabling the service
+does not grant the plan service account, a human, or any WIF principal permission to read the
+directory.
+
 ## Current fail-closed path
 
 Until a directory authorization path is separately approved, a designated Cloud Identity or
@@ -17,7 +22,10 @@ Google Workspace administrator performs the export from a clean `github-config` 
 end-user OAuth credentials:
 
 ```sh
-nix develop --command python3 scripts/export-idp-groups.py --apply
+IDP_BILLING_PROJECT="<bootstrap-cicd-project-id>"
+nix develop --command python3 scripts/export-idp-groups.py \
+  --billing-project "${IDP_BILLING_PROJECT}" \
+  --apply
 ```
 
 The operator reviews `idp/team-members.json`, commits only that generated file through a pull
@@ -47,6 +55,7 @@ exist in the current workflow.
 ## Verification
 
 - Bootstrap contains no Cloud Identity role in an organization IAM binding.
+- The CI trust project has the Cloud Identity API enabled only as a quota service.
 - `github-config-plan` retains only its documented Google Cloud read permissions.
 - Manual exports are reviewed and attributable to a named administrator.
 - Automated export remains disabled or fail-closed until both required directory APIs pass

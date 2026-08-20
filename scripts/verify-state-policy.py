@@ -203,6 +203,11 @@ for token in ('"ADMIN_READ"', '"DATA_READ"', '"DATA_WRITE"'):
 for service in ('"iam.googleapis.com"', '"sts.googleapis.com"'):
     require(service, cicd, f"CI federation audit service {service}")
 require(
+    '"cloudidentity.googleapis.com"',
+    cicd,
+    "Cloud Identity API quota service for reviewed governance exports",
+)
+require(
     '"iam.googleapis.com"', seed, "IAM-backed service-account credential audit logging"
 )
 require(
