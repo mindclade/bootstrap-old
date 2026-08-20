@@ -105,7 +105,7 @@ identity, network, cluster, storage, backup, and admission prerequisites are hea
 Checkpoint: Argo CD is healthy, desired state is synchronized, policy tests pass, images are
 digest-pinned with complete release evidence, and application health checks pass.
 
-## Verify and close recovery
+## Verify recovery
 
 - Revoke every temporary grant explicitly; do not rely on expiry.
 - Rotate any recovery material exposed during the incident.
