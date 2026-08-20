@@ -92,6 +92,22 @@ resource "google_storage_bucket_iam_member" "reader" {
   member   = "serviceAccount:${var.service_account_emails[each.value.account]}"
 }
 
+# Terraform's GCS backend acquires a native state lock by creating and deleting a sibling
+# `.tflock` object, including for read-only plans. Keep state objects read-only while granting
+# plan/drift identities write authority only when the target resource is a lock object.
+resource "google_storage_bucket_iam_member" "reader_lock_object_admin" {
+  for_each = local.reader_bindings
+  bucket   = google_storage_bucket.state[each.value.scope].name
+  role     = "roles/storage.objectAdmin"
+  member   = "serviceAccount:${var.service_account_emails[each.value.account]}"
+
+  condition {
+    title       = "terraform-state-lock-only"
+    description = "Permit native GCS backend locking without write access to Terraform state."
+    expression  = "resource.name.endsWith('.tflock')"
+  }
+}
+
 resource "google_storage_bucket_iam_member" "writer" {
   for_each = local.writer_bindings
   bucket   = google_storage_bucket.state[each.value.scope].name

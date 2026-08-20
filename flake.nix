@@ -51,6 +51,8 @@
             '';
       in
       {
+        packages.terraform = terraform-pinned;
+
         # ---------------------------------------------------------------------------------
         # CI shell
         # ---------------------------------------------------------------------------------
@@ -74,8 +76,8 @@
           # moves, move this with it — two sources of truth for a toolchain version is how
           # CI and a laptop end up disagreeing about a plan.
           #
-          # flake.lock makes the package set reproducible. The shellHook fails closed if a
-          # future lock update moves Terraform away from the version used by protected CI.
+          # flake.lock makes the supporting package set reproducible; Terraform itself is the
+          # checksum-pinned derivation above. The shellHook verifies all repository pins agree.
           packages = with pkgs; [
             terraform-pinned
             google-cloud-sdk

@@ -13,7 +13,7 @@ Scheduled read-only jobs do not wait for plan-environment review. They receive s
 
 - `bootstrap/.github/workflows/recovery-drill.yml` on `bootstrap-plan`;
 - `bootstrap/.github/workflows/drift.yml` on `bootstrap-drift`;
-- `github-config/.github/workflows/drift.yml` on `github-config-plan`; and
+- `github-config/.github/workflows/{drift,idp-sync}.yml` on `github-config-plan`; and
 - `infrastructure-live/.github/workflows/{drift,cost}.yml` on `infrastructure-live-plan`.
 
 A feature branch, renamed workflow, additional scheduled workflow, or arbitrary workflow in

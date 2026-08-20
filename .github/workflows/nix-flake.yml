@@ -1,4 +1,8 @@
 ---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
 # The flake dev shell must actually build.
 #
 # Every repository here documents `nix develop` as the way to get the toolchain, and the
@@ -27,8 +31,8 @@ on:
       - "flake.lock"
   workflow_dispatch:
   schedule:
-    # Weekly. The flake pins a nixpkgs CHANNEL rather than a revision, so it can break without
-    # any file in this repository changing.
+    # Weekly rebuild catches upstream archive/cache and supported-platform failures even when
+    # the committed flake and lock have not changed.
     - cron: "17 2 * * 1"
 
 permissions:
@@ -74,6 +78,7 @@ jobs:
       - name: Validate pinned Terraform dev shell
         run: |
           want="$(tr -d '[:space:]' < .terraform-version)"
+          nix build --no-link .#terraform
           have="$(nix develop --command terraform version -json | jq -r .terraform_version)"
           test "$have" = "$want"
       - name: Run repository linters from the CI shell

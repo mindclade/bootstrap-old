@@ -213,9 +213,9 @@ add_license_header() {
 if [[ "${#files[@]}" -eq 0 ]]; then
   while IFS= read -r -d '' file; do
     files+=("${file}")
-  done < <(rg --files -0 \
+  done < <(rg --files --hidden -0 \
     -g '**/*.tf' -g '**/*.hcl' -g '**/*.yml' -g '**/*.yaml' -g '**/*.sh' -g '**/*.nix' -g '**/*.example' -g '**/CODEOWNERS' \
-    -g '!**/.terraform/**' -g '!**/.terragrunt-cache/**' -g '!**/rendered/**' -g '!**/*.lock.hcl' \
+    -g '!**/.git/**' -g '!**/.terraform/**' -g '!**/.terragrunt-cache/**' -g '!**/rendered/**' -g '!**/*.lock.hcl' \
     "${REPO_ROOT}")
 fi
 

@@ -5,29 +5,26 @@
 locals {
   service_accounts = {
     bootstrap-plan = {
-      display    = "Bootstrap speculative plan"
-      repo       = "bootstrap"
-      apply_only = false
-      org_roles  = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
+      display   = "Bootstrap speculative plan"
+      repo      = "bootstrap"
+      org_roles = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
       project_roles = {
         seed = ["roles/viewer"]
         cicd = ["roles/viewer"]
       }
     }
     bootstrap-drift = {
-      display    = "Bootstrap read-only drift"
-      repo       = "bootstrap"
-      apply_only = false
-      org_roles  = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
+      display   = "Bootstrap read-only drift"
+      repo      = "bootstrap"
+      org_roles = ["roles/resourcemanager.organizationViewer", "roles/iam.securityReviewer"]
       project_roles = {
         seed = ["roles/viewer"]
         cicd = ["roles/viewer"]
       }
     }
     bootstrap-apply = {
-      display    = "Bootstrap protected apply"
-      repo       = "bootstrap"
-      apply_only = true
+      display = "Bootstrap protected apply"
+      repo    = "bootstrap"
       org_roles = [
         "roles/resourcemanager.organizationAdmin",
         "roles/resourcemanager.projectCreator",
@@ -51,10 +48,9 @@ locals {
       }
     }
     github-config-plan = {
-      display    = "GitHub configuration speculative plan"
-      repo       = "github-config"
-      apply_only = false
-      org_roles  = ["roles/cloudidentity.groups.readonly"]
+      display   = "GitHub configuration speculative plan"
+      repo      = "github-config"
+      org_roles = ["roles/cloudidentity.groups.readonly"]
       project_roles = {
         seed = ["roles/viewer"]
       }
@@ -62,14 +58,12 @@ locals {
     github-config-apply = {
       display       = "GitHub configuration protected apply"
       repo          = "github-config"
-      apply_only    = true
       org_roles     = []
       project_roles = {}
     }
     infrastructure-live-plan = {
-      display    = "Infrastructure live speculative plan"
-      repo       = "infrastructure-live"
-      apply_only = false
+      display = "Infrastructure live speculative plan"
+      repo    = "infrastructure-live"
       org_roles = [
         "roles/resourcemanager.organizationViewer",
         "roles/iam.securityReviewer",
@@ -81,9 +75,8 @@ locals {
       }
     }
     infrastructure-live-apply-foundation = {
-      display    = "Infrastructure live organization foundation apply"
-      repo       = "infrastructure-live"
-      apply_only = true
+      display = "Infrastructure live organization foundation apply"
+      repo    = "infrastructure-live"
       org_roles = [
         "roles/resourcemanager.folderAdmin",
         "roles/resourcemanager.projectCreator",
@@ -100,21 +93,18 @@ locals {
     infrastructure-live-apply-development = {
       display       = "Infrastructure live development apply"
       repo          = "infrastructure-live"
-      apply_only    = true
       org_roles     = []
       project_roles = {}
     }
     infrastructure-live-apply-staging = {
       display       = "Infrastructure live staging apply"
       repo          = "infrastructure-live"
-      apply_only    = true
       org_roles     = []
       project_roles = {}
     }
     infrastructure-live-apply-production = {
       display       = "Infrastructure live production apply"
       repo          = "infrastructure-live"
-      apply_only    = true
       org_roles     = []
       project_roles = {}
     }

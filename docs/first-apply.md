@@ -90,7 +90,7 @@ unapproved artifact stores.
 Configure in `github-config`/GitHub Enterprise:
 
 - protected `main` and critical paths;
-- protected `plan`, `bootstrap`, and `bootstrap-recovery-read` environments;
+- protected `plan`, `bootstrap`, and `break-glass` environments;
 - `WIF_PROVIDER_PLAN` / `WIF_PROVIDER_APPLY`;
 - `artifact_signer_wif_provider` as `WIF_PROVIDER_SIGNER`; the matching
   `artifact_signer_principal` is consumed only by `infrastructure-live` when binding its
@@ -112,7 +112,11 @@ from this point onward.
 The `plan` environment is part of the Google Cloud identity, not presentation-only metadata.
 Record successful plan token exchange plus failed exchange from an arbitrary workflow and
 branch. The scheduled recovery drill authenticates through its separate exact-main workflow
-binding while retaining the `bootstrap-recovery-read` GitHub environment.
+binding while its optional state inspection waits behind the governed `bootstrap` environment.
+
+Also verify that a credentialed plan can create and delete only its GCS backend `.tflock`
+object. The plan identity must be able to read state and complete with locking enabled, but a
+direct write to the `.tfstate` object must be denied by IAM.
 
 ## Prohibited
 

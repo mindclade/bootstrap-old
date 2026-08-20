@@ -33,8 +33,8 @@ flowchart TD
 
     EX --> BG --> BS --> GC --> IL --> GO --> AP
 
-    classDef critical fill:#0b1f33,color:#ffffff,stroke:#3aa3ff,stroke-width:2px;
-    classDef restore fill:#e8f4ff,color:#0b1f33,stroke:#1677b8,stroke-width:1.5px;
+    classDef critical fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:2px;
+    classDef restore fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
     class EX,BG critical;
     class BS,GC,IL,GO,AP restore;
 ```

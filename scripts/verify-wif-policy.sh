@@ -21,12 +21,27 @@ for claim in (
     'assertion.repository_owner_id', 'assertion.repository_id', 'assertion.repository',
     'assertion.sub.startsWith',
     'assertion.aud', 'assertion.workflow_ref', 'assertion.workflow_sha',
-    'assertion.job_workflow_ref', 'assertion.job_workflow_sha',
 ): require(claim,wif)
 require('allowed_audiences = [local.github_provider_audiences[each.key]]', wif, 'provider-specific GitHub audience allowlist')
 for repo in ('bootstrap','github-config','infrastructure-live','gitops','mindclade-internal-monorepo'):
     require(f'var.github_repository_ids["{repo}"]',wif,f'immutable repository ID for {repo}')
 require('attribute.workflow_ref', wif, 'mapped direct workflow_ref claim')
+require(
+    'each.key == local.github_signer_repository ? {',
+    wif,
+    'signer-only optional reusable-workflow claim mapping',
+)
+mapping_start = 'attribute_mapping = merge({'
+signer_mapping_start = '}, each.key == local.github_signer_repository ? {'
+if mapping_start in wif and signer_mapping_start in wif:
+    direct_mapping = wif.split(mapping_start, 1)[1].split(signer_mapping_start, 1)[0]
+    if 'attribute.job_workflow_' in direct_mapping:
+        errors.append('direct-workflow provider maps optional reusable-workflow claims')
+else:
+    errors.append('GitHub provider does not separate universal and signer-only claim mappings')
+for claim in ('"attribute.job_workflow_ref" = "assertion.job_workflow_ref"',
+              '"attribute.job_workflow_sha" = "assertion.job_workflow_sha"'):
+    require(claim, wif, f'signer-only optional mapping {claim}')
 if 'attribute.workflow_ref/${var.github_org}/${repo}' not in wif:
     errors.append('direct workflow principal is not based on attribute.workflow_ref')
 require(
@@ -35,6 +50,8 @@ require(
     'exhaustive WIF binding map',
 )
 require('member             = each.value.principal', sa, 'explicit per-binding principal')
+if 'apply_only' in sa:
+    errors.append('obsolete apply_only selector remains after exhaustive WIF binding migration')
 for identity, subject in (
     ('bootstrap-plan', 'repo:${var.github_org}/bootstrap:environment:plan'),
     ('github-config-plan', 'repo:${var.github_org}/github-config:environment:plan'),
@@ -46,6 +63,7 @@ for identity, repo, workflow in (
     ('bootstrap-drift', 'bootstrap', 'drift.yml'),
     ('bootstrap-plan:recovery-drill', 'bootstrap', 'recovery-drill.yml'),
     ('github-config-plan:drift', 'github-config', 'drift.yml'),
+    ('github-config-plan:idp-sync', 'github-config', 'idp-sync.yml'),
     ('infrastructure-live-plan:drift', 'infrastructure-live', 'drift.yml'),
     ('infrastructure-live-plan:cost', 'infrastructure-live', 'cost.yml'),
 ):
@@ -98,8 +116,12 @@ if 'google_secret_manager_secret_version' in all_tf: errors.append('secret paylo
 plan_workflow=(root/'.github/workflows/plan.yml').read_text()
 apply_workflow=(root/'.github/workflows/apply.yml').read_text()
 drift_workflow=(root/'.github/workflows/drift.yml').read_text()
+recovery_workflow=(root/'.github/workflows/recovery-drill.yml').read_text()
 for name, workflow in (('plan',plan_workflow),('apply-plan',apply_workflow)):
     require('environment: plan', workflow, f'{name} protected plan environment')
+require('environment: bootstrap', recovery_workflow, 'governed recovery environment')
+if 'bootstrap-recovery-read' in recovery_workflow:
+    errors.append('recovery workflow references an unmanaged GitHub environment')
 for name, workflow in (('plan',plan_workflow),('apply-plan',apply_workflow),('drift',drift_workflow)):
     require('-lock-timeout=20m', workflow, f'{name} state locking')
 for path in list((root/'.github/workflows').glob('*.yml')) + [root/'Makefile', root/'test/clean-room-recovery.md']:

@@ -69,9 +69,9 @@ flowchart TD
     GC -->|governed variables and environments| IL
     IL -->|cloud prerequisites| GO
 
-    classDef ring0 fill:#0b1f33,color:#ffffff,stroke:#3aa3ff,stroke-width:2px;
-    classDef contract fill:#e8f4ff,color:#0b1f33,stroke:#1677b8,stroke-width:1.5px;
-    classDef downstream fill:#f4f7fa,color:#0b1f33,stroke:#66788a,stroke-width:1.5px;
+    classDef ring0 fill:#201C24,color:#F2EFE8,stroke:#D68A61,stroke-width:2px;
+    classDef contract fill:#F2EFE8,color:#201C24,stroke:#B5673F,stroke-width:1.5px;
+    classDef downstream fill:#FBFAF7,color:#423D48,stroke:#5B5660,stroke-width:1.5px;
     class HR,PR,ST,ID ring0;
     class OUT contract;
     class GC,IL,GO downstream;
@@ -106,6 +106,11 @@ implementation paths directly.
 - Human recovery access requires a named identity protected by phishing-resistant MFA.
 - Automation uses GitHub OIDC and WIF; service-account JSON keys are prohibited.
 - WIF providers are repository-isolated and bind immutable GitHub identity claims.
+- Plan identities require the exact protected `plan` environment subject. Scheduled read-only
+  consumers have only enumerated `workflow_ref@refs/heads/main` bindings; no automation
+  service account accepts a repository-wide principal.
+- Direct-workflow providers map only universal GitHub claims. The optional
+  `job_workflow_ref`/`job_workflow_sha` claims are mapped only on the monorepo signer provider.
 - The monorepo GitHub provider accepts only the protected `release` subject executing the
   released `reusable-binauthz-sign.yml@v3.0.0`; builders use separate Buildkite trust.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
@@ -117,8 +122,11 @@ implementation paths directly.
 ## State and recovery model
 
 The primary state object is protected by narrow IAM, native locking, versioning, soft delete,
-CMEK, and lifecycle controls. An independent cross-location replica provides a separate
-recovery source and may lag by one transfer interval.
+CMEK, and lifecycle controls. Plan and drift identities can read state, but their only object
+write authority is an IAM-conditioned `roles/storage.objectAdmin` grant whose resource name
+must end in `.tflock`; this lets the GCS backend acquire and release its native lock without
+allowing those identities to modify `.tfstate`. An independent cross-location replica provides
+a separate recovery source and may lag by one transfer interval.
 
 Recovery proceeds from least invasive to most invasive:
 

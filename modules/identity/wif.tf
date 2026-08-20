@@ -55,7 +55,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
   workload_identity_pool_provider_id = "gh-${substr(replace(each.key, "_", "-"), 0, 28)}"
   display_name                       = each.key
 
-  attribute_mapping = {
+  attribute_mapping = merge({
     "google.subject"                = "assertion.sub"
     "attribute.aud"                 = "assertion.aud"
     "attribute.repository"          = "assertion.repository"
@@ -64,10 +64,13 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.ref"                 = "assertion.ref"
     "attribute.workflow_ref"        = "assertion.workflow_ref"
     "attribute.workflow_sha"        = "assertion.workflow_sha"
-    "attribute.job_workflow_ref"    = "assertion.job_workflow_ref"
-    "attribute.job_workflow_sha"    = "assertion.job_workflow_sha"
     "attribute.event_name"          = "assertion.event_name"
-  }
+    }, each.key == local.github_signer_repository ? {
+    # These claims exist only while a job executes a called reusable workflow. Mapping them
+    # on direct-workflow providers would make otherwise valid tokens fail attribute mapping.
+    "attribute.job_workflow_ref" = "assertion.job_workflow_ref"
+    "attribute.job_workflow_sha" = "assertion.job_workflow_sha"
+  } : {})
 
   attribute_condition = local.github_provider_conditions[each.key]
 
@@ -132,8 +135,8 @@ locals {
     for repo, _ in local.wif_repositories :
     repo => "principalSet://iam.googleapis.com/${local.github_pool_name}/attribute.workflow_ref/${var.github_org}/${repo}"
   }
-  # The infrastructure plan reads every live state scope and the private module credential.
-  # Bind it to GitHub's environment-shaped OIDC subject rather than every workflow in the repo.
+  # Plans read sensitive state. Bind each plan identity to its repository's environment-shaped
+  # OIDC subject rather than every workflow in the repository.
   principal_environment = {
     bootstrap-plan           = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/bootstrap:environment:plan"
     github-config-plan       = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/github-config:environment:plan"
@@ -163,6 +166,10 @@ locals {
     "github-config-plan:drift" = {
       identity  = "github-config-plan"
       principal = "${local.principal_workflow_prefix["github-config"]}/.github/workflows/drift.yml@refs/heads/main"
+    }
+    "github-config-plan:idp-sync" = {
+      identity  = "github-config-plan"
+      principal = "${local.principal_workflow_prefix["github-config"]}/.github/workflows/idp-sync.yml@refs/heads/main"
     }
     "infrastructure-live-plan:drift" = {
       identity  = "infrastructure-live-plan"

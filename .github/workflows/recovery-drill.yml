@@ -1,4 +1,8 @@
 ---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
 name: recovery drill
 
 on:
@@ -34,7 +38,7 @@ jobs:
 
   inspect-state:
     if: inputs.inspect-state == true
-    environment: bootstrap-recovery-read
+    environment: bootstrap
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     permissions:

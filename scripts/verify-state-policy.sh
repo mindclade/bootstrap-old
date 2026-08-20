@@ -46,6 +46,21 @@ require(
     replica,
     "read-only bootstrap replica recovery binding",
 )
+lock_marker = 'resource "google_storage_bucket_iam_member" "reader_lock_object_admin"'
+writer_marker = 'resource "google_storage_bucket_iam_member" "writer"'
+lock_binding = (
+    primary.split(lock_marker, 1)[1].split(writer_marker, 1)[0]
+    if lock_marker in primary and writer_marker in primary
+    else ""
+)
+for token, label in (
+    ('google_storage_bucket_iam_member" "reader_lock_object_admin', "read-only identity lock-object binding"),
+    ('role     = "roles/storage.objectAdmin"', "lock-object create/delete role"),
+    ('expression  = "resource.name.endsWith(\'.tflock\')"', "lock-object-only IAM condition"),
+):
+    require(token, primary if token.startswith("google_storage") else lock_binding, label)
+if '.tfstate' in lock_binding:
+    errors.append("read-only identity IAM condition permits Terraform state writes")
 for token in (
     "logging_config {",
     'log_actions       = ["FIND", "COPY"]',
