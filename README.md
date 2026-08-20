@@ -4,10 +4,10 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)"
-            srcset="docs/assets/brand/mc-lockup-horizontal-dark-1080w.png">
+            srcset="docs/assets/brand/mc-lockup-horizontal-dark-1520w.png">
     <source media="(prefers-color-scheme: light)"
-            srcset="docs/assets/brand/mc-lockup-horizontal-1080w.png">
-    <img alt="Mindclade" src="docs/assets/brand/mc-lockup-horizontal-1520w.png" width="540">
+            srcset="docs/assets/brand/mc-lockup-horizontal-1520w.png">
+    <img alt="Mindclade" src="docs/assets/brand/mc-lockup-horizontal-1520w.png" width="380">
   </picture>
 </p>
 
@@ -40,13 +40,26 @@
 | Documentation | [`docs/README.md`](docs/README.md) |
 
 Mindclade's **Ring-0** repository owns only the durable state, seed projects, external
-workload federation, control-plane automation identities, and break-glass recovery needed to
-operate the rest of the enterprise platform.
+workload federation, control-plane automation identities, and break-glass recovery needed
+to operate the rest of the enterprise platform.
 
-It does not own normal folders, organization policy, billing governance, Essential Contacts,
-SCC, normal log sinks, networks, workload projects, GKE, or Kubernetes. Those belong to
-`infrastructure-live` and `gitops`.
+## Authority boundary
 
+### This repository creates
+
+- a protected bootstrap folder;
+- a seed/state project and CI federation project;
+- primary and cross-location replica state buckets with location-compatible CMEKs;
+- repository-isolated GitHub Actions WIF providers;
+- a no-standing-permission break-glass account with critical alerting.
+
+### This repository does not create
+
+- normal organization folders, policy, billing governance, SCC, contacts, or log sinks;
+- networks, workload projects, managed services, or GKE;
+- Argo CD, Kubernetes desired state, or application source.
+
+Those authorities remain in `infrastructure-live`, `gitops`, and the internal monorepo.
 ## Authority boundary
 
 ### This repository creates
@@ -82,9 +95,9 @@ make lint
 make fmt-check
 ```
 
-Expected result: shell, Terraform, WIF-policy, local-state, repository-contract, and license
-checks pass. `make first-apply-workdir` only prepares the clean, backend-free working directory
-described by the first-apply runbook; it never initializes, plans, or applies Terraform.
+Expected result: shell, Terraform, WIF-policy, local-state, repository-contract, and
+license checks pass. `make plan-local` is reserved for the documented first apply or
+recovery path.
 
 ## Lifecycle
 
@@ -110,11 +123,11 @@ make first-apply-workdir SOURCE_SHA=<full-sha> FIRST_APPLY_WORK_DIR=<new-path>
 
 | Path | Responsibility |
 | --- | --- |
-| `modules/projects/` | Bootstrap folder, seed/state project, CI federation project, APIs, and KMS |
-| `modules/identity/` | WIF providers, automation accounts, module-reader secret container, and break-glass controls |
-| `modules/state/` | Primary and replica state buckets, IAM, retention controls, and replication |
+| `modules/projects/` | Bootstrap folder, seed/state project, CI federation project, APIs, KMS |
+| `modules/identity/` | WIF providers, automation accounts, break-glass controls |
+| `modules/state/` | State buckets, IAM, retention controls, and replication |
 | `contracts/` | Supported output and repository authority contracts |
-| `.github/workflows/` | Plan, protected apply, drift, validation, and recovery-drill automation |
+| `.github/workflows/` | Plan, protected apply, drift, validation, recovery-drill automation |
 | `docs/` | First apply, operations, handoff, and recovery procedures |
 
 ## Documentation and safety
@@ -130,3 +143,28 @@ Cloud Identity directory reads use the separately governed
 
 Never commit local state, saved plans, credentials, private keys, or production tfvars. Report
 vulnerabilities through [the security policy](SECURITY.md), never a public issue.
+
+## Security
+
+**Do not open a public issue for a vulnerability.** Report through
+[a private security advisory](https://github.com/mindclade/bootstrap/security/advisories/new)
+or `security@mindclade.com`. Acknowledgement within 2 business days, triage within 5. Full
+policy: [`SECURITY.md`](SECURITY.md).
+
+## License
+
+`LicenseRef-Mindclade-Proprietary` — see [`LICENSE`](LICENSE). First-party configuration
+and policy files carry the shared header defined in
+[`license-header.txt`](license-header.txt).
+
+## Related repositories
+
+| Repository | Holds |
+| --- | --- |
+| [`infrastructure-live`](https://github.com/mindclade/infrastructure-live) | Folders, org policy, governance, networks, workload projects |
+| [`gitops`](https://github.com/mindclade/gitops) | Argo CD and Kubernetes desired state |
+| [`.github`](https://github.com/mindclade/.github) | Organization-wide conventions and canonical policies |
+
+---
+
+
