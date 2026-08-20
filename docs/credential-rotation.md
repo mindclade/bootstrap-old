@@ -63,7 +63,8 @@ buildkite-agent oidc request-token \
 ```
 
 The provider maps the immutable pipeline UUID to `google.subject`, requires the separately
-included organization UUID, allowlists the pipeline UUID, and requires the exact audience.
+included organization UUID, allowlists the exact pipeline-ID/step-key pair, requires a
+`self-hosted` runner on `main` from a webhook or API build, and requires the exact audience.
 Do not use Buildkite's default compound subject: organization, pipeline, ref, commit, and step
 can exceed Google Cloud's 127-byte mapped-subject limit. Step-level service-account bindings
 remain an additional restriction. Treat any pipeline that does not request this exact token

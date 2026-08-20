@@ -43,9 +43,10 @@ module "identity" {
   github_org_id         = var.github_org_id
   github_repository_ids = var.github_repository_ids
 
-  enable_buildkite_wif      = var.enable_buildkite_wif
-  buildkite_organization_id = var.buildkite_organization_id
-  buildkite_pipeline_ids    = var.buildkite_pipeline_ids
+  enable_buildkite_wif              = var.enable_buildkite_wif
+  buildkite_organization_id         = var.buildkite_organization_id
+  buildkite_pipeline_ids            = var.buildkite_pipeline_ids
+  buildkite_pipeline_step_contracts = var.buildkite_pipeline_step_contracts
 
   break_glass_principals = var.break_glass_principals
   security_contact       = var.security_contact

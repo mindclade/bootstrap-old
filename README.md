@@ -71,11 +71,13 @@ make fmt-check
 ```
 
 Expected result: shell, Terraform, WIF-policy, local-state, repository-contract, and license
-checks pass. `make plan-local` is reserved for the documented first apply or recovery path.
+checks pass. `make first-apply-workdir` only prepares the clean, backend-free working directory
+described by the first-apply runbook; it never initializes, plans, or applies Terraform.
 
 ## Lifecycle
 
-1. Perform the one-time first apply with `terraform init -backend=false`.
+1. Export the exact reviewed commit to a dedicated encrypted work directory without
+   `backend.tf`, then perform the one-time local-backend first apply there.
 2. Migrate local state to the generated GCS bootstrap state bucket.
 3. Securely destroy local state and plan copies.
 4. Configure repository variables and the protected `plan`, `bootstrap`, and recovery-read
@@ -89,7 +91,7 @@ make validate
 make lint
 make fmt-check
 make fmt
-make plan-local       # only during documented recovery/first apply
+make first-apply-workdir SOURCE_SHA=<full-sha> FIRST_APPLY_WORK_DIR=<new-path>
 ```
 
 ## Repository map
