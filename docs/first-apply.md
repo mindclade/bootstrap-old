@@ -151,7 +151,7 @@ Do not enable an irreversible bucket retention lock. State protection is supplie
 IAM, native locking, versioning, soft delete, lifecycle controls, CMEK, and independent
 replication.
 
-## Completion criteria
+## Verify
 
 - Remote state and its replica contain the recorded generations and a no-change plan succeeds.
 - Native locking is observed in audit logs while direct plan-identity writes to `.tfstate` fail.

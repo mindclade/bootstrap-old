@@ -43,7 +43,7 @@ After migration, populate the empty module-reader secret container through
 [Automation secret bootstrap](automation-secret-bootstrap.md), then configure protected
 GitHub environments and non-secret variables from verified Terraform outputs.
 
-## Verify activation
+## Verify
 
 - `terraform plan` against the remote bootstrap backend reports no changes.
 - Primary state version history and independent replica health are visible.
@@ -52,7 +52,7 @@ GitHub environments and non-secret variables from verified Terraform outputs.
 - A protected no-op apply plans and applies the exact reviewed `main` commit.
 - No local state, saved plan, output JSON, credential, or private key remains on disk.
 
-## Stop and recover
+## Roll back or recover
 
 If the remote-state verification plan is not empty, stop before enabling automation. Preserve
 the local and remote copies, record their checksums, and use [State recovery](state-recovery.md)

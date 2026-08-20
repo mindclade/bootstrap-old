@@ -58,10 +58,14 @@ vault and Secret Manager version have been independently verified.
 The GitOps render App uses a separate key and a separate secret container in the normal
 `mc-common-security` project owned by `infrastructure-live`.
 
-## Verify and recover
+## Verify
 
 Verify the enabled version metadata without printing the payload, then run a harmless
 `infrastructure-live` private-module initialization through its protected plan identity. Confirm
-that unrelated identities cannot access the secret. If the new version fails, re-enable the last
-known-good version during the approved rollback window and investigate the App installation,
-permissions, and Secret Manager IAM binding before destroying either version.
+that unrelated identities cannot access the secret.
+
+## Roll back or recover
+
+If the new version fails, re-enable the last known-good version during the approved rollback window
+and investigate the App installation, permissions, and Secret Manager IAM binding before destroying
+either version.

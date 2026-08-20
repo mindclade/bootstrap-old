@@ -72,7 +72,7 @@ shape as denied, then prove positive and wrong-pipeline/wrong-step exchanges bef
 After break-glass use, remove temporary IAM grants, review audit logs, rotate any exposed
 recovery material, and record a post-incident review.
 
-## Completion criteria
+## Verify
 
 - Every intended consumer succeeds with the new exact subject, workflow, environment, and audience.
 - Wrong-repository, wrong-workflow, wrong-environment, and wrong-audience exchanges remain denied.
