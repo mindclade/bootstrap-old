@@ -1,0 +1,44 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+# Copy to a secure, untracked tfvars file only for first apply/recovery. Normal CI values are
+# supplied through protected GitHub environment/repository variables.
+org_id          = "123456789012"
+billing_account = "ABCDEF-ABCDEF-ABCDEF"
+
+# Empty creates the Ring-0 folder. Set only when adopting an existing folders/NNN resource.
+bootstrap_folder_id = ""
+
+prefix = "mc"
+region = "us-central1"
+
+state_bucket_location      = "US"
+state_kms_location         = "us"
+state_replica_location     = "europe-west4"
+state_replica_kms_location = "europe-west4"
+
+state_soft_delete_days   = 30
+noncurrent_version_days  = 90
+noncurrent_version_count = 100
+kms_protection_level     = "SOFTWARE"
+
+github_org    = "Mindclade"
+github_org_id = "12345678"
+github_repository_ids = {
+  bootstrap                    = "100000001"
+  github-config                = "100000002"
+  infrastructure-live          = "100000003"
+  gitops                       = "100000004"
+  mindclade-internal-monorepo = "100000005"
+}
+
+# Enable only after copying immutable UUIDs from Buildkite organization/pipeline settings.
+enable_buildkite_wif      = false
+buildkite_organization_id = ""
+buildkite_pipeline_ids    = []
+
+break_glass_principals = [
+  "founder-recovery@example.net",
+]
+security_contact = "security@mindclade.com"

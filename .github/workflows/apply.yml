@@ -1,0 +1,179 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+name: apply
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      allow_destroy:
+        description: Permit a reviewed Ring-0 deletion or replacement in this exact plan.
+        required: false
+        type: boolean
+        default: false
+      change_reference:
+        description: Required incident/change identifier when allow_destroy is true.
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-apply
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: "1.15.9"
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+  TF_VAR_org_id: ${{ vars.GCP_ORG_ID }}
+  TF_VAR_billing_account: ${{ vars.BILLING_ACCOUNT }}
+  TF_VAR_bootstrap_folder_id: ${{ vars.BOOTSTRAP_FOLDER_ID || '' }}
+  TF_VAR_prefix: ${{ vars.RESOURCE_PREFIX || 'mc' }}
+  TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
+  TF_VAR_state_bucket_location: ${{ vars.STATE_BUCKET_LOCATION || 'US' }}
+  TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION || 'us' }}
+  TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'europe-west4' }}
+  TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'europe-west4' }}
+  TF_VAR_github_org: ${{ vars.GITHUB_ORG || 'Mindclade' }}
+  TF_VAR_github_org_id: ${{ vars.GITHUB_ORG_ID }}
+  TF_VAR_github_repository_ids: ${{ vars.GITHUB_REPOSITORY_IDS_JSON }}
+  TF_VAR_enable_buildkite_wif: ${{ vars.ENABLE_BUILDKITE_WIF || 'false' }}
+  TF_VAR_buildkite_organization_id: ${{ vars.BUILDKITE_ORGANIZATION_ID || '' }}
+  TF_VAR_buildkite_pipeline_ids: ${{ vars.BUILDKITE_PIPELINE_IDS_JSON || '[]' }}
+  TF_VAR_break_glass_principals: ${{ vars.BREAK_GLASS_PRINCIPALS_JSON || '[]' }}
+  TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT || 'security@mindclade.com' }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      destructive: ${{ steps.classify.outputs.destructive }}
+      delete_count: ${{ steps.classify.outputs.delete_count }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify exact triggering commit
+        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
+          service_account: ${{ vars.SA_BOOTSTRAP_PLAN }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: Initialize remote state
+        env:
+          STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          test -n "$STATE_BUCKET"
+          terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
+      - name: Plan exact merged commit
+        run: |
+          set -euo pipefail
+          terraform plan -input=false -lock=false -out=tfplan
+          sha256sum tfplan > tfplan.sha256
+      - id: classify
+        name: Classify destructive operations
+        run: |
+          set -euo pipefail
+          terraform show -json tfplan > "${RUNNER_TEMP}/tfplan.json"
+          delete_count="$(jq '[.resource_changes[]? | select(.change.actions | index("delete"))] | length' "${RUNNER_TEMP}/tfplan.json")"
+          create_count="$(jq '[.resource_changes[]? | select(.change.actions | index("create"))] | length' "${RUNNER_TEMP}/tfplan.json")"
+          update_count="$(jq '[.resource_changes[]? | select(.change.actions == ["update"])] | length' "${RUNNER_TEMP}/tfplan.json")"
+          destructive=false
+          if [ "$delete_count" -gt 0 ]; then destructive=true; fi
+          echo "destructive=${destructive}" >> "$GITHUB_OUTPUT"
+          echo "delete_count=${delete_count}" >> "$GITHUB_OUTPUT"
+          {
+            echo '## Ring-0 plan classification'
+            echo
+            echo "Commit: \`${GITHUB_SHA}\`"
+            echo
+            echo "| Creates | Updates | Deletes/replacements |"
+            echo "|---:|---:|---:|"
+            echo "| ${create_count} | ${update_count} | ${delete_count} |"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bootstrap-plan-${{ github.sha }}
+          path: |
+            tfplan
+            tfplan.sha256
+          if-no-files-found: error
+          retention-days: 1
+      - name: Require explicit destructive-change authorization
+        if: steps.classify.outputs.destructive == 'true'
+        env:
+          ALLOW_DESTROY: ${{ inputs.allow_destroy || false }}
+          CHANGE_REFERENCE: ${{ inputs.change_reference || '' }}
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_EVENT_NAME}" != "workflow_dispatch" ] || [ "$ALLOW_DESTROY" != "true" ]; then
+            echo "::error::Ring-0 plan contains deletions/replacements. Re-run manually with allow_destroy after review."
+            exit 1
+          fi
+          if ! [[ "$CHANGE_REFERENCE" =~ ^[A-Za-z0-9][A-Za-z0-9._:/-]{2,127}$ ]]; then
+            echo "::error::A valid incident/change reference is required for destructive Ring-0 work."
+            exit 1
+          fi
+          echo "Authorized destructive change: ${CHANGE_REFERENCE}" >> "$GITHUB_STEP_SUMMARY"
+
+  apply:
+    needs: plan
+    environment: bootstrap
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Verify exact triggering commit
+        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: bootstrap-plan-${{ github.sha }}
+      - name: Verify plan integrity
+        run: sha256sum --check tfplan.sha256
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+        with:
+          workload_identity_provider: ${{ vars.WIF_PROVIDER_APPLY }}
+          service_account: ${{ vars.SA_BOOTSTRAP_APPLY }}
+          create_credentials_file: true
+          export_environment_variables: true
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: Initialize remote state
+        env:
+          STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          test -n "$STATE_BUCKET"
+          terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
+      - name: Apply reviewed plan
+        run: terraform apply -input=false -lock-timeout=20m tfplan
+      - name: Publish safe output inventory
+        run: |
+          terraform output -json | jq 'with_entries(.value |= {sensitive: .sensitive, type: .type})' >> "$GITHUB_STEP_SUMMARY"

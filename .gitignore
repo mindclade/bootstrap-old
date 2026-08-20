@@ -1,0 +1,22 @@
+.terraform/
+.terragrunt-cache/
+*.tfplan
+*.tfstate
+*.tfstate.*
+terraform.tfvars
+*.auto.tfvars
+!*.example
+*.pem
+*.p12
+.env
+.env.*
+.DS_Store
+._*
+result
+
+# Generated language caches
+__pycache__/
+*.py[cod]
+!.env.example
+credentials/
+kubeconfig*

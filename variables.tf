@@ -1,0 +1,209 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+variable "org_id" {
+  description = "Google Cloud organization numeric ID."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]+$", var.org_id))
+    error_message = "org_id must be numeric."
+  }
+}
+
+variable "billing_account" {
+  description = "Billing account ID in XXXXXX-XXXXXX-XXXXXX form."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$", upper(var.billing_account)))
+    error_message = "billing_account must use XXXXXX-XXXXXX-XXXXXX format."
+  }
+}
+
+variable "bootstrap_folder_id" {
+  description = "Optional existing bootstrap folder resource name (folders/NNN) for adoption. Empty creates the Ring-0 bootstrap folder."
+  type        = string
+  default     = ""
+  validation {
+    condition     = var.bootstrap_folder_id == "" || can(regex("^folders/[0-9]+$", var.bootstrap_folder_id))
+    error_message = "bootstrap_folder_id must be empty or folders/<numeric-id>."
+  }
+}
+
+variable "prefix" {
+  description = "Short lowercase resource prefix."
+  type        = string
+  default     = "mc"
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9]{1,3}$", var.prefix))
+    error_message = "prefix must be 2-4 lowercase alphanumerics beginning with a letter."
+  }
+}
+
+variable "region" {
+  description = "Primary bootstrap region for regional control-plane resources."
+  type        = string
+  default     = "us-central1"
+}
+
+variable "state_bucket_location" {
+  description = "Primary GCS location for Terraform state buckets."
+  type        = string
+  default     = "US"
+}
+
+variable "state_kms_location" {
+  description = "Cloud KMS location compatible with state_bucket_location (for US multi-region, use us)."
+  type        = string
+  default     = "us"
+}
+
+variable "state_replica_location" {
+  description = "Independent GCS location for state replicas."
+  type        = string
+  default     = "europe-west4"
+  validation {
+    condition     = lower(var.state_replica_location) != lower(var.state_bucket_location)
+    error_message = "state_replica_location must differ from state_bucket_location."
+  }
+}
+
+variable "state_replica_kms_location" {
+  description = "Cloud KMS location compatible with state_replica_location."
+  type        = string
+  default     = "europe-west4"
+  validation {
+    condition     = lower(var.state_replica_kms_location) != lower(var.state_kms_location)
+    error_message = "state_replica_kms_location must differ from state_kms_location."
+  }
+}
+
+variable "state_soft_delete_days" {
+  description = "GCS soft-delete retention for primary state objects."
+  type        = number
+  default     = 30
+  validation {
+    condition     = var.state_soft_delete_days >= 7 && var.state_soft_delete_days <= 90
+    error_message = "state_soft_delete_days must be between 7 and 90."
+  }
+}
+
+variable "noncurrent_version_days" {
+  description = "Age before old noncurrent state versions become eligible for deletion."
+  type        = number
+  default     = 90
+  validation {
+    condition     = var.noncurrent_version_days >= 30
+    error_message = "noncurrent_version_days must be at least 30."
+  }
+}
+
+variable "noncurrent_version_count" {
+  description = "Minimum newer versions retained before old versions can be deleted."
+  type        = number
+  default     = 100
+  validation {
+    condition     = var.noncurrent_version_count >= 10
+    error_message = "noncurrent_version_count must be at least 10."
+  }
+}
+
+variable "kms_protection_level" {
+  description = "SOFTWARE or HSM for bootstrap state CMEKs. HSM has cost and location implications."
+  type        = string
+  default     = "SOFTWARE"
+  validation {
+    condition     = contains(["SOFTWARE", "HSM"], var.kms_protection_level)
+    error_message = "kms_protection_level must be SOFTWARE or HSM."
+  }
+}
+
+variable "github_org" {
+  description = "Canonical GitHub organization login."
+  type        = string
+  default     = "Mindclade"
+}
+
+variable "github_org_id" {
+  description = "Immutable numeric GitHub organization ID."
+  type        = string
+  validation {
+    condition     = can(regex("^[0-9]+$", var.github_org_id))
+    error_message = "github_org_id must be numeric."
+  }
+}
+
+variable "github_repository_ids" {
+  description = "Immutable numeric GitHub repository IDs keyed by repository name."
+  type        = map(string)
+  validation {
+    condition = alltrue([
+      for name in ["bootstrap", "github-config", "infrastructure-live", "gitops", "mindclade-internal-monorepo"] :
+      can(regex("^[0-9]+$", lookup(var.github_repository_ids, name, "")))
+    ])
+    error_message = "github_repository_ids must contain numeric IDs for every control repository and the monorepo."
+  }
+}
+
+variable "enable_buildkite_wif" {
+  description = "Create the Buildkite OIDC workload identity pool/provider. Enable after immutable organization and pipeline IDs are known."
+  type        = bool
+  default     = false
+}
+
+variable "buildkite_organization_id" {
+  description = "Immutable Buildkite organization UUID."
+  type        = string
+  default     = ""
+  validation {
+    condition = !var.enable_buildkite_wif || can(regex(
+      "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+      var.buildkite_organization_id,
+    ))
+    error_message = "buildkite_organization_id must be a UUID when Buildkite WIF is enabled."
+  }
+}
+
+variable "buildkite_pipeline_ids" {
+  description = "Immutable Buildkite pipeline UUIDs permitted to exchange OIDC tokens."
+  type        = set(string)
+  default     = []
+  validation {
+    condition = !var.enable_buildkite_wif || (
+      length(var.buildkite_pipeline_ids) > 0 && alltrue([
+        for id in var.buildkite_pipeline_ids : can(regex(
+          "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-5][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}$",
+          id,
+        ))
+      ])
+    )
+    error_message = "buildkite_pipeline_ids must contain at least one UUID when Buildkite WIF is enabled."
+  }
+}
+
+variable "break_glass_principals" {
+  description = "Named human users permitted to impersonate the no-standing-permission break-glass account."
+  type        = set(string)
+  default     = []
+  validation {
+    condition     = alltrue([for p in var.break_glass_principals : can(regex("^[^@[:space:]]+@[^@[:space:]]+$", p))])
+    error_message = "break_glass_principals must contain email addresses."
+  }
+}
+
+variable "security_contact" {
+  description = "Group mailbox receiving break-glass alerts."
+  type        = string
+  default     = "security@mindclade.com"
+}
+
+variable "labels" {
+  description = "Bootstrap labels."
+  type        = map(string)
+  default = {
+    managed-by  = "terraform"
+    repository  = "bootstrap"
+    criticality = "critical"
+  }
+}

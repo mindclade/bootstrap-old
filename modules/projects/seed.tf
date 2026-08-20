@@ -1,0 +1,144 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+
+resource "google_project" "seed" {
+  name       = "${var.prefix}-b-seed"
+  project_id = local.seed_project_id
+  folder_id  = local.bootstrap_folder_name
+
+  billing_account     = var.billing_account
+  auto_create_network = false
+  deletion_policy     = "PREVENT"
+  labels              = merge(var.labels, { purpose = "ring0-seed" })
+}
+
+locals {
+  seed_services = toset([
+    "cloudbilling.googleapis.com",
+    "cloudkms.googleapis.com",
+    "cloudresourcemanager.googleapis.com",
+    "iam.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "logging.googleapis.com",
+    "monitoring.googleapis.com",
+    "secretmanager.googleapis.com",
+    "serviceusage.googleapis.com",
+    "storage.googleapis.com",
+  ])
+}
+
+resource "google_project_service" "seed" {
+  for_each = local.seed_services
+  project  = google_project.seed.project_id
+  service  = each.value
+
+  disable_on_destroy         = false
+  disable_dependent_services = false
+}
+
+resource "google_kms_key_ring" "state_primary" {
+  project    = google_project.seed.project_id
+  name       = "${var.prefix}-bootstrap-state-primary"
+  location   = var.state_kms_location
+  depends_on = [google_project_service.seed]
+}
+
+resource "google_kms_crypto_key" "state_primary" {
+  name            = "tfstate"
+  key_ring        = google_kms_key_ring.state_primary.id
+  purpose         = "ENCRYPT_DECRYPT"
+  rotation_period = "7776000s"
+
+  version_template {
+    algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"
+    protection_level = var.kms_protection_level
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# Ring-0 automation secrets are limited to credentials needed to read the private
+# Terraform module source before infrastructure-live can create normal security
+# projects. Secret payloads are injected out-of-band and never enter Terraform state.
+resource "google_kms_crypto_key" "automation_secrets" {
+  name            = "automation-secrets"
+  key_ring        = google_kms_key_ring.state_primary.id
+  purpose         = "ENCRYPT_DECRYPT"
+  rotation_period = "7776000s"
+
+  version_template {
+    algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"
+    protection_level = var.kms_protection_level
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+resource "google_kms_key_ring" "state_replica" {
+  project    = google_project.seed.project_id
+  name       = "${var.prefix}-bootstrap-state-replica"
+  location   = var.state_replica_kms_location
+  depends_on = [google_project_service.seed]
+}
+
+resource "google_kms_crypto_key" "state_replica" {
+  name            = "tfstate"
+  key_ring        = google_kms_key_ring.state_replica.id
+  purpose         = "ENCRYPT_DECRYPT"
+  rotation_period = "7776000s"
+
+  version_template {
+    algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"
+    protection_level = var.kms_protection_level
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+data "google_storage_project_service_account" "seed" {
+  project    = google_project.seed.project_id
+  depends_on = [google_project_service.seed]
+}
+
+resource "google_kms_crypto_key_iam_member" "state_primary_gcs" {
+  crypto_key_id = google_kms_crypto_key.state_primary.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+}
+
+resource "google_kms_crypto_key_iam_member" "state_replica_gcs" {
+  crypto_key_id = google_kms_crypto_key.state_replica.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+}
+
+# Data Access audit logs for the Ring-0 state and token-exchange surfaces. Normal
+# organization-wide sinks are owned by infrastructure-live, but the source audit policy for
+# bootstrap resources must exist independently of that runtime.
+resource "google_project_iam_audit_config" "ring0_data_access" {
+  for_each = toset([
+    "storage.googleapis.com",
+    "iamcredentials.googleapis.com",
+    "sts.googleapis.com",
+    "secretmanager.googleapis.com",
+  ])
+
+  project = google_project.seed.project_id
+  service = each.value
+
+  audit_log_config {
+    log_type = "DATA_READ"
+  }
+
+  audit_log_config {
+    log_type = "DATA_WRITE"
+  }
+}

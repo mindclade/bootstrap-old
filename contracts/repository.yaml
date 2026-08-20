@@ -1,0 +1,42 @@
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+#
+---
+schema_version: 1
+repository: bootstrap
+repository_class: enterprise-control
+visibility: private
+authority:
+    - ring0-state
+    - automation-federation
+    - seed-projects
+    - break-glass-recovery
+forbidden_authority:
+    - normal-folders
+    - normal-org-policy
+    - workload-projects
+    - networks
+    - gke
+    - kubernetes-desired-state
+required_paths:
+    - modules/state
+    - modules/identity
+    - modules/projects
+    - modules/naming
+    - docs/first-apply.md
+    - docs/break-glass.md
+    - docs/state-recovery.md
+forbidden_paths:
+    - modules/folders
+    - modules/governance
+    - .terraform
+    - .terragrunt-cache
+default_branch: main
+change_model: pull-request
+production_controls:
+  required_reviews: true
+  codeowners: true
+  merge_queue: true
+  immutable_actions: true
+  oidc_only_cloud_authentication: true

@@ -1,0 +1,118 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mindclade Ring-0 output contract",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "contract_version",
+    "state_bucket",
+    "state_project_id",
+    "cicd_project_id",
+    "workload_identity_provider",
+    "automation_identities"
+  ],
+  "properties": {
+    "contract_version": {
+      "const": "1.0.0"
+    },
+    "state_bucket": {
+      "type": "string",
+      "minLength": 3
+    },
+    "state_project_id": {
+      "type": "string",
+      "minLength": 6
+    },
+    "cicd_project_id": {
+      "type": "string",
+      "minLength": 6
+    },
+    "audit_project_id": {
+      "type": "string"
+    },
+    "workload_identity_provider": {
+      "type": "string",
+      "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/.+/providers/.+$"
+    },
+    "automation_identities": {
+      "type": "object",
+      "required": [
+        "bootstrap",
+        "github-config",
+        "infrastructure-live"
+      ],
+      "properties": {
+        "bootstrap": {
+          "type": "object",
+          "required": [
+            "plan",
+            "apply",
+            "drift"
+          ],
+          "properties": {
+            "plan": {
+              "type": "string",
+              "format": "email"
+            },
+            "apply": {
+              "type": "string",
+              "format": "email"
+            },
+            "drift": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "additionalProperties": false
+        },
+        "github-config": {
+          "type": "object",
+          "required": [
+            "plan",
+            "apply",
+            "drift"
+          ],
+          "properties": {
+            "plan": {
+              "type": "string",
+              "format": "email"
+            },
+            "apply": {
+              "type": "string",
+              "format": "email"
+            },
+            "drift": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "additionalProperties": false
+        },
+        "infrastructure-live": {
+          "type": "object",
+          "required": [
+            "plan",
+            "apply",
+            "drift"
+          ],
+          "properties": {
+            "plan": {
+              "type": "string",
+              "format": "email"
+            },
+            "apply": {
+              "type": "string",
+              "format": "email"
+            },
+            "drift": {
+              "type": "string",
+              "format": "email"
+            }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

@@ -1,0 +1,7 @@
+* @Mindclade/platform @Mindclade/security
+/modules/state/ @Mindclade/security
+/modules/identity/ @Mindclade/security
+/backend.tf @Mindclade/security
+/.github/workflows/apply.yml @Mindclade/platform @Mindclade/security
+/docs/break-glass.md @Mindclade/security
+/docs/state-recovery.md @Mindclade/security

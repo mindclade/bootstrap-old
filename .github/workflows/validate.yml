@@ -1,0 +1,41 @@
+---
+name: validate
+
+on:
+  pull_request:
+  merge_group:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-validate-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  TF_VERSION: "1.15.9"
+  TF_IN_AUTOMATION: "true"
+
+jobs:
+  validate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: Repository invariants
+        run: bash scripts/validate.sh
+      - name: Terraform format
+        run: terraform fmt -check -recursive -diff
+      - name: Terraform initialize without backend
+        run: terraform init -backend=false -input=false -lockfile=readonly
+      - name: Terraform validate
+        run: terraform validate -no-color
