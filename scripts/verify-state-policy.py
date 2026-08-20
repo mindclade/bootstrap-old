@@ -224,17 +224,21 @@ for key_ring in ("state_primary", "automation_secrets", "state_replica"):
     )
 
 storage_service_agent = (
-    'member        = "serviceAccount:service-${google_project.seed.number}'
-    '@gs-project-accounts.iam.gserviceaccount.com"'
+    'member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"'
 )
 if seed.count(storage_service_agent) != 2:
-    errors.append("state KMS bindings must derive the exact GCS service agent twice")
-if seed.count(
-    'depends_on = [google_project_service.seed["storage.googleapis.com"]]'
-) != 2:
-    errors.append("state KMS bindings must wait only for the Storage API")
-if 'data "google_storage_project_service_account" "seed"' in seed:
-    errors.append("state KMS bindings retain an apply-time Storage service-agent lookup")
+    errors.append("state KMS bindings must use the authoritative GCS service agent twice")
+storage_data_marker = 'data "google_storage_project_service_account" "seed"'
+storage_data = (
+    seed.split(storage_data_marker, 1)[-1].split("\n}", 1)[0]
+    if storage_data_marker in seed
+    else ""
+)
+require(
+    'depends_on = [google_project_service.seed["storage.googleapis.com"]]',
+    storage_data,
+    "service-specific Storage dependency for the GCS service agent",
+)
 if "depends_on = [google_project_service.seed]" in seed:
     errors.append("seed resources retain a broad dependency on every project service")
 
