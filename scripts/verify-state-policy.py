@@ -13,9 +13,13 @@ seed = (root / "modules/projects/seed.tf").read_text()
 cicd = (root / "modules/projects/cicd.tf").read_text()
 break_glass = (root / "modules/identity/break-glass.tf").read_text()
 variables = (root / "variables.tf").read_text()
+root_main = (root / "main.tf").read_text()
+project_outputs = (root / "modules/projects/outputs.tf").read_text()
+automation_secret = (root / "modules/identity/automation-secrets.tf").read_text()
 first_apply = (root / "docs/first-apply.md").read_text()
 prepare_first_apply = (root / "scripts/prepare-first-apply.py").read_text()
 makefile = (root / "Makefile").read_text()
+recovery_drill = (root / ".github/workflows/recovery-drill.yml").read_text()
 errors: list[str] = []
 
 
@@ -105,6 +109,78 @@ for token, label in (
     require(token, first_apply, label)
 if "terraform init -backend=false -input=false\nterraform plan" in first_apply:
     errors.append("first-apply guide still plans after validation-only backend initialization")
+
+for token, label in (
+    (
+        "bootstrap/negative-write-probe.tfstate",
+        "exact non-lock recovery-drill probe",
+    ),
+    ("gcloud storage cp - \"$probe\"", "negative object-create attempt"),
+    ("gcloud storage rm \"$probe\"", "unexpected-write cleanup"),
+    ("upload_status", "negative-write result gate"),
+    ("reason other than an IAM denial", "fail-closed denial classification"),
+    ("cleanup failed", "failed-cleanup critical error"),
+):
+    require(token, recovery_drill, label)
+
+for token, text, label in (
+    (
+        'resource "google_kms_key_ring" "automation_secrets"',
+        seed,
+        "dedicated automation-secret key ring",
+    ),
+    (
+        "location   = var.automation_secret_location",
+        seed,
+        "regional automation-secret key ring location",
+    ),
+    (
+        'resource "google_kms_crypto_key" "automation_secrets_regional"',
+        seed,
+        "dedicated regional automation-secret CMEK",
+    ),
+    (
+        "key_ring        = google_kms_key_ring.automation_secrets.id",
+        seed,
+        "automation-secret CMEK key ring",
+    ),
+    (
+        "from = google_kms_crypto_key.automation_secrets",
+        seed,
+        "non-destructive partial-apply key state removal",
+    ),
+    ("destroy = false", seed, "preserved partial-apply key"),
+    (
+        "google_kms_crypto_key.automation_secrets_regional.id",
+        project_outputs,
+        "regional automation-secret CMEK output",
+    ),
+    (
+        "automation_secret_location = var.automation_secret_location",
+        root_main,
+        "shared secret replica and CMEK location",
+    ),
+    (
+        "location = var.automation_secret_location",
+        automation_secret,
+        "Secret Manager regional replica",
+    ),
+    (
+        "kms_key_name = var.automation_secret_kms_key_id",
+        automation_secret,
+        "Secret Manager regional replica CMEK",
+    ),
+    (
+        "automation_secret_location must be a single Google Cloud region",
+        variables,
+        "regional automation-secret input validation",
+    ),
+):
+    require(token, text, label)
+if "automation_secret_location   = var.state_kms_location" in root_main:
+    errors.append("Secret Manager replica still reuses the state multi-region KMS location")
+if 'resource "google_kms_crypto_key" "automation_secrets" {' in seed:
+    errors.append("unsupported multi-region automation-secret key remains managed")
 for token, label in (
     ('command("status", "--porcelain=v1", "--untracked-files=all")', "clean checkout guard"),
     ('if relative == "backend.tf"', "root backend omission"),

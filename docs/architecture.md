@@ -93,7 +93,8 @@ flowchart TD
 2. Terraform creates seed resources, federation, identities, state protection, and replication.
 3. The operator migrates state into the new bootstrap bucket and verifies a no-change plan.
 4. The private-module reader's first secret version is injected directly into Secret Manager;
-   Terraform owns only the empty container and IAM.
+   Terraform owns only the empty container, its IAM, and a dedicated regional CMEK in the exact
+   same supported Secret Manager replica location.
 5. `github-config` publishes verified non-secret output identifiers as repository variables.
 6. Protected workflows use separate plan and apply identities for all normal later changes.
 7. `infrastructure-live` grants environment identities their normal scoped authority after
@@ -115,13 +116,20 @@ implementation paths directly.
   service account accepts a repository-wide principal.
 - Direct-workflow providers map only universal GitHub claims. The optional
   `job_workflow_ref`/`job_workflow_sha` claims are mapped only on the monorepo signer provider.
-- The monorepo GitHub provider accepts only the protected `release` subject executing the
-  released `reusable-binauthz-sign.yml@v3.0.0`; builders use separate Buildkite trust.
+- The monorepo GitHub provider accepts only the exact `refs/heads/main` ref with the protected
+  `release` subject executing the released `reusable-binauthz-sign.yml@v3.0.0`; builders use
+  separate Buildkite trust.
 - Buildkite jobs request tokens with `--subject-claim pipeline_id --claim organization_id` and
   the exact provider resource name as audience. Google maps the immutable pipeline UUID—not
   Buildkite's potentially overlong compound default subject—to `google.subject`.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
+- Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
+  Account Viewer on the configured billing account. They can refresh folders, projects, and
+  billing-backed resources but cannot create/move resources, link projects, or change billing.
+- Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until a
+  separately approved Workspace/Cloud Identity authorization exists, the IdP export follows the
+  named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
 - The break-glass account has no standing organization role. Temporary grants are conditional,
   time-bound, alerted, explicitly revoked, and reviewed.
 - Terraform creates Secret Manager containers but never secret payload versions.

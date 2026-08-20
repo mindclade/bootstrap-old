@@ -10,4 +10,4 @@ output "cicd_project_id" { value = google_project.cicd.project_id }
 output "cicd_project_number" { value = data.google_project.cicd.number }
 output "state_primary_kms_key_id" { value = google_kms_crypto_key.state_primary.id }
 output "state_replica_kms_key_id" { value = google_kms_crypto_key.state_replica.id }
-output "automation_secret_kms_key_id" { value = google_kms_crypto_key.automation_secrets.id }
+output "automation_secret_kms_key_id" { value = google_kms_crypto_key.automation_secrets_regional.id }

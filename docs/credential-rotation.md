@@ -42,14 +42,15 @@ The monorepo provider is a signer-only path. Its provider condition must require
 - immutable owner and monorepo repository IDs;
 - `repo:mindclade@<owner-id>/mindclade-internal-monorepo@<repository-id>:environment:release`
   as the exact immutable subject;
+- `refs/heads/main` as the exact `ref`;
 - `mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0`
   as the exact `job_workflow_ref`; and
 - the provider-specific audience.
 
 When the reusable signer workflow is released at a new protected tag, change bootstrap trust
 first, verify allowed and denied token exchanges, then update callers. Never temporarily widen
-the condition to a branch, repository-wide principal, or wildcard workflow. The builder and
-qualifier use separate Buildkite trust and must never receive the exported signer principal.
+the condition to another ref, a repository-wide principal, or a wildcard workflow. The builder
+and qualifier use separate Buildkite trust and must never receive the exported signer principal.
 
 Buildkite federation has an exact token-generation contract. Every Google Cloud credential
 exchange must request:

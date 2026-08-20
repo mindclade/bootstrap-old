@@ -125,5 +125,8 @@ Start at the [documentation home](docs/README.md). Read the
 [automation-secret-bootstrap](docs/automation-secret-bootstrap.md) procedures before touching
 live Ring-0 state.
 
+Cloud Identity directory reads use the separately governed
+[authorization handoff](docs/cloud-identity-authorization.md); they are not organization IAM.
+
 Never commit local state, saved plans, credentials, private keys, or production tfvars. Report
 vulnerabilities through [the security policy](SECURITY.md), never a public issue.

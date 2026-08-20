@@ -24,6 +24,7 @@ locals {
   # this versioned reusable workflow may exchange a GitHub token through this provider.
   github_signer_repository       = "mindclade-internal-monorepo"
   github_signer_environment      = "release"
+  github_signer_ref              = "refs/heads/main"
   github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
   github_signer_subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
 
@@ -40,6 +41,7 @@ locals {
       "assertion.aud == ${jsonencode(local.github_provider_audiences[repo])}",
       ], repo == local.github_signer_repository ? [
       "assertion.sub == ${jsonencode(local.github_signer_subject)}",
+      "assertion.ref == ${jsonencode(local.github_signer_ref)}",
       "assertion.job_workflow_ref == ${jsonencode(local.github_signer_job_workflow_ref)}",
       ] : [
       "assertion.sub.startsWith(${jsonencode("${local.github_immutable_subject_prefixes[repo]}:")})",
@@ -86,11 +88,6 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     issuer_uri        = "https://token.actions.githubusercontent.com"
     allowed_audiences = [local.github_provider_audiences[each.key]]
   }
-}
-
-moved {
-  from = google_iam_workload_identity_pool_provider.github_signer_legacy[0]
-  to   = google_iam_workload_identity_pool_provider.github["mindclade-internal-monorepo"]
 }
 
 resource "google_iam_workload_identity_pool" "buildkite" {

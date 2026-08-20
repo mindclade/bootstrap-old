@@ -125,6 +125,10 @@ Before `infrastructure-live` can initialize, inject the GitHub App private key i
 Ring-0 secret container using `docs/automation-secret-bootstrap.md`. The key payload never
 passes through Terraform or GitHub Actions configuration.
 
+Before adding a secret version, verify the user-managed replica and its CMEK are both in
+`automation_secret_location`. Do not reuse the state key's multi-region `us` location for this
+global Secret Manager resource.
+
 ## 6. Destroy local copies
 
 After independent verification:
@@ -175,10 +179,18 @@ Configure in `github-config`/GitHub Enterprise:
 - at least one named human in `BREAK_GLASS_PRINCIPALS_JSON`;
 - exact workflow authorization for `.github/workflows/apply.yml`.
 
-Before enabling release signing, verify a monorepo token from the protected `release`
-environment and `reusable-binauthz-sign.yml@v3.0.0` can exchange through the signer provider.
-Also record negative tests showing a builder job, an unprotected ref, a different environment,
-and a different reusable workflow are rejected.
+Before enabling release signing, protect the monorepo's `main` branch and create the `release`
+environment with required reviewers and a protected-branch deployment policy. Then verify a
+monorepo token from the exact `refs/heads/main` ref, protected `release` environment, and
+`reusable-binauthz-sign.yml@v3.0.0` can exchange through the signer provider. Also record
+negative tests showing a builder job, an unprotected ref, a different environment, and a
+different reusable workflow are rejected.
+
+Before the first federated speculative plan or scheduled drift run, the protected bootstrap
+apply must have granted `roles/browser` at the organization and `roles/billing.viewer` on the
+configured billing account to both read identities. These are refresh permissions only:
+`bootstrap-plan` and `bootstrap-drift` must not receive Billing Account User, a folder writer,
+or an organization administrator role.
 
 Run `plan.yml`, then a no-op protected `apply.yml` execution. Normal changes are Git-mediated
 from this point onward.
@@ -190,7 +202,11 @@ binding while retaining the dedicated governed `bootstrap-recovery-read` environ
 
 Also verify that a credentialed plan can create and delete only its GCS backend `.tflock`
 object. The plan identity must be able to read state and complete with locking enabled, but a
-direct write to the `.tfstate` object must remain denied by IAM.
+direct write to the `.tfstate` object must remain denied by IAM. The opt-in `inspect-state`
+recovery drill permanently checks the negative half of this contract by attempting the exact
+`bootstrap/negative-write-probe.tfstate` path and accepting only an explicit IAM denial. It
+refuses to overwrite a pre-existing probe; if creation ever succeeds, it immediately attempts
+to delete the harmless probe and fails the drill either way.
 
 ## Prohibited
 

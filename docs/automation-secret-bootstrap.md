@@ -23,11 +23,20 @@ Terraform never receives the GitHub App private key and never creates a secret v
 container is accessible only to the bootstrap-created infrastructure-live plan and scoped
 apply service accounts.
 
+The user-managed Secret Manager replica and its dedicated CMEK use the same single region
+(`automation_secret_location`, `us-central1` by default). Do not reuse the `us` multi-region
+Terraform-state key: Mindclade's global Secret Manager resource apply rejected that location,
+and Secret Manager requires a user-managed replica's CMEK location to match the replica exactly.
+A partially applied legacy multi-region `automation-secrets` key is preserved in Google Cloud
+but deliberately removed from Terraform state without destruction; it never protected a secret
+version.
+
 ## Provision the first version
 
 1. Create a dedicated GitHub App with read-only `Contents` access.
-2. Install it only on `mindclade` and the repositories that require module
-   reads.
+2. Install it in the Mindclade organization (`mindclade`) using **Only select repositories**.
+   Select `mindclade-internal-monorepo`; add another explicitly named module-source repository
+   only through a reviewed governance change. Never grant **All repositories** access.
 3. Store the App ID as the `TF_APP_ID` non-secret Actions variable through `github-config`.
 4. Obtain the private key through the approved credentials vault and add it directly to
    Secret Manager:
@@ -62,7 +71,14 @@ The GitOps render App uses a separate key and a separate secret container in the
 
 Verify the enabled version metadata without printing the payload, then run a harmless
 `infrastructure-live` private-module initialization through its protected plan identity. Confirm
-that unrelated identities cannot access the secret.
+that unrelated identities cannot access the secret. Also inspect the secret metadata and confirm
+the replica location and CMEK resource name contain the same region:
+
+```sh
+gcloud secrets describe "${SECRET_ID}" \
+  --project "${PROJECT_ID}" \
+  --format='yaml(replication.userManaged.replicas)'
+```
 
 ## Roll back or recover
 

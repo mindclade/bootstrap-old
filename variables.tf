@@ -59,6 +59,20 @@ variable "state_kms_location" {
   default     = "us"
 }
 
+variable "automation_secret_location" {
+  description = "Single supported Secret Manager region for the Ring-0 module-reader secret and its dedicated CMEK."
+  type        = string
+  default     = "us-central1"
+
+  validation {
+    condition = (
+      can(regex("^[a-z]+(?:-[a-z0-9]+)+[0-9]$", var.automation_secret_location)) &&
+      !contains(["global", "us", "eu", "asia"], lower(var.automation_secret_location))
+    )
+    error_message = "automation_secret_location must be a single Google Cloud region such as us-central1, not a multi-region or global location."
+  }
+}
+
 variable "state_replica_location" {
   description = "Independent GCS location for state replicas."
   type        = string

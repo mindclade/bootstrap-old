@@ -11,6 +11,10 @@ root = Path(__file__).resolve().parent.parent
 wif = (root / "modules/identity/wif.tf").read_text()
 sa = (root / "modules/identity/service-accounts.tf").read_text()
 all_tf = "\n".join(p.read_text() for p in (root / "modules/identity").glob("*.tf"))
+rotation = (root / "docs/credential-rotation.md").read_text()
+canonical_migration = (root / "docs/canonical-repository-migration.md").read_text()
+module_reader = (root / "docs/automation-secret-bootstrap.md").read_text()
+cloud_identity = (root / "docs/cloud-identity-authorization.md").read_text()
 errors = []
 
 
@@ -123,6 +127,10 @@ for token, label in (
     (
         "assertion.sub == ${jsonencode(local.github_signer_subject)}",
         "exact signer environment subject condition",
+    ),
+    (
+        "assertion.ref == ${jsonencode(local.github_signer_ref)}",
+        "exact signer protected-main ref condition",
     ),
     (
         "assertion.job_workflow_ref == ${jsonencode(local.github_signer_job_workflow_ref)}",
@@ -239,14 +247,63 @@ require(
     "canonical signer repository",
 )
 require(
-    'to   = google_iam_workload_identity_pool_provider.github["mindclade-internal-monorepo"]',
+    'github_signer_ref              = "refs/heads/main"',
     wif,
-    "signer provider state restoration",
+    "canonical signer protected-main ref",
 )
-if 'resource "google_iam_workload_identity_pool_provider" "github_signer_legacy"' in wif:
-    errors.append("obsolete alternate-name signer provider remains")
+if "github_signer_legacy" in wif:
+    errors.append("obsolete signer compatibility resource or state address remains")
 if "google_secret_manager_secret_version" in all_tf:
     errors.append("secret payload stored in Terraform state")
+
+github_config_plan = sa.split("github-config-plan = {", 1)[-1].split(
+    "github-config-apply = {", 1
+)[0]
+require("org_roles = []", github_config_plan, "empty github-config-plan organization roles")
+if "roles/cloudidentity" in sa:
+    errors.append("Cloud Identity role incorrectly modeled as Resource Manager IAM")
+
+bootstrap_plan = sa.split("bootstrap-plan = {", 1)[-1].split(
+    "bootstrap-drift = {", 1
+)[0]
+bootstrap_drift = sa.split("bootstrap-drift = {", 1)[-1].split(
+    "bootstrap-apply = {", 1
+)[0]
+for identity, block in (
+    ("bootstrap-plan", bootstrap_plan),
+    ("bootstrap-drift", bootstrap_drift),
+):
+    require('"roles/browser"', block, f"{identity} hierarchy Browser")
+    if "roles/resourcemanager.organizationViewer" in block:
+        errors.append(f"{identity} retains redundant Organization Viewer")
+for token, label in (
+    ('resource "google_billing_account_iam_member" "bootstrap_read"', "bootstrap billing read binding"),
+    ('"bootstrap-plan",', "bootstrap plan billing viewer member"),
+    ('"bootstrap-drift",', "bootstrap drift billing viewer member"),
+    ('role               = "roles/billing.viewer"', "read-only billing role"),
+):
+    require(token, sa, label)
+bootstrap_read = sa.split(
+    'resource "google_billing_account_iam_member" "bootstrap_read"', 1
+)[-1].split("locals {", 1)[0]
+if "roles/billing.user" in bootstrap_read:
+    errors.append("bootstrap read identities can link projects to the billing account")
+for token, text, label in (
+    ("`refs/heads/main` as the exact `ref`", rotation, "signer ref rotation contract"),
+    (
+        "speculative `moved` block is prohibited",
+        canonical_migration,
+        "greenfield signer state contract",
+    ),
+    ("**Only select repositories**", module_reader, "selected-repository GitHub App scope"),
+    ("`mindclade-internal-monorepo`", module_reader, "canonical module-source selection"),
+    (
+        "`roles/cloudidentity.groups.readonly` is not supported",
+        cloud_identity,
+        "Cloud Identity authorization boundary",
+    ),
+):
+    require(token, text, label)
 
 plan_workflow = (root / ".github/workflows/plan.yml").read_text()
 apply_workflow = (root / ".github/workflows/apply.yml").read_text()

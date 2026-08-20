@@ -15,6 +15,7 @@ region = "us-central1"
 
 state_bucket_location      = "US"
 state_kms_location         = "us"
+automation_secret_location = "us-central1"
 state_replica_location     = "europe-west4"
 state_replica_kms_location = "europe-west4"
 

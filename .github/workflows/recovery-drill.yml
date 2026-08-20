@@ -11,7 +11,7 @@ on:
   workflow_dispatch:
     inputs:
       inspect-state:
-        description: Inspect the primary state bucket without modifying it.
+        description: Inspect state and prove the plan identity cannot write non-lock objects.
         required: false
         type: boolean
         default: false
@@ -68,3 +68,47 @@ jobs:
           gcloud storage ls --all-versions "gs://${STATE_BUCKET}/bootstrap/**" | sed -n '1,20p'
           gcloud storage buckets describe "gs://${REPLICA_BUCKET}" --format='yaml(name,location,versioning_enabled,soft_delete_policy)'
           gcloud storage ls --all-versions "gs://${REPLICA_BUCKET}/bootstrap/**" | sed -n '1,20p'
+      - name: Prove non-lock state writes are denied
+        env:
+          STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          probe="gs://${STATE_BUCKET}/bootstrap/negative-write-probe.tfstate"
+
+          set +e
+          describe_output="$(gcloud storage objects describe "$probe" 2>&1)"
+          describe_status=$?
+          set -e
+          if [ "$describe_status" -eq 0 ]; then
+            echo "::error::The negative-write probe object already exists; refusing to overwrite it."
+            exit 1
+          fi
+          if ! grep -Eiq '404|not found|no urls matched' <<<"$describe_output"; then
+            echo "::error::Could not establish that the negative-write probe path is absent."
+            printf '%s\n' "$describe_output" >&2
+            exit 1
+          fi
+
+          set +e
+          upload_output="$(printf '%s\n' 'mindclade-negative-write-probe' | gcloud storage cp - "$probe" 2>&1)"
+          upload_status=$?
+          set -e
+          if [ "$upload_status" -eq 0 ]; then
+            set +e
+            cleanup_output="$(gcloud storage rm "$probe" 2>&1)"
+            cleanup_status=$?
+            set -e
+            if [ "$cleanup_status" -ne 0 ]; then
+              echo "::error::CRITICAL: plan identity wrote a state-like object and cleanup failed."
+              printf '%s\n' "$cleanup_output" >&2
+            else
+              echo "::error::Plan identity unexpectedly wrote a state-like object; the probe was deleted."
+            fi
+            exit 1
+          fi
+          if ! grep -Eiq '403|forbidden|permission|storage\.objects\.create|denied' <<<"$upload_output"; then
+            echo "::error::Negative-write probe failed for a reason other than an IAM denial."
+            printf '%s\n' "$upload_output" >&2
+            exit 1
+          fi
+          echo "Plan identity was denied non-lock object creation as required."

@@ -23,6 +23,8 @@
 - [First apply and state migration](first-apply.md) — the only supported local-state apply.
 - [Automation secret bootstrap](automation-secret-bootstrap.md) — inject the first private
   module-reader credential without passing it through Terraform.
+- [Cloud Identity export authorization](cloud-identity-authorization.md) — keep directory reads
+  outside unsupported organization IAM and define the fail-closed/manual handoff.
 - [Ownership handoff](ownership-handoff.md) — migrate non-Ring-0 resources into
   `infrastructure-live` without dual ownership.
 
@@ -65,4 +67,3 @@ terraform fmt -check -recursive -diff
 Check local links and execute changed recovery procedures only in the documented scratch or
 isolated environment. New pages follow the canonical
 [Mindclade documentation templates](https://github.com/mindclade/.github/tree/main/docs/templates).
-
