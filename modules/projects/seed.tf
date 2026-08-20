@@ -23,6 +23,9 @@ locals {
     "iamcredentials.googleapis.com",
     "logging.googleapis.com",
     "monitoring.googleapis.com",
+    # The seed project is the authoritative quota project for normal-plane organization-policy
+    # reconciliation; bootstrap enables the API but does not own any organization policy.
+    "orgpolicy.googleapis.com",
     "secretmanager.googleapis.com",
     "serviceusage.googleapis.com",
     "storage.googleapis.com",
@@ -39,10 +42,9 @@ resource "google_project_service" "seed" {
 }
 
 resource "google_kms_key_ring" "state_primary" {
-  project    = google_project.seed.project_id
-  name       = "${var.prefix}-bootstrap-state-primary"
-  location   = var.state_kms_location
-  depends_on = [google_project_service.seed]
+  project  = google_project_service.seed["cloudkms.googleapis.com"].project
+  name     = "${var.prefix}-bootstrap-state-primary"
+  location = var.state_kms_location
 }
 
 resource "google_kms_crypto_key" "state_primary" {
@@ -77,10 +79,9 @@ removed {
 # user-managed replica's CMEK to be in exactly the same supported location as the replica;
 # state uses a separate multi-region key and must not be reused here.
 resource "google_kms_key_ring" "automation_secrets" {
-  project    = google_project.seed.project_id
-  name       = "${var.prefix}-bootstrap-automation-secrets"
-  location   = var.automation_secret_location
-  depends_on = [google_project_service.seed]
+  project  = google_project_service.seed["cloudkms.googleapis.com"].project
+  name     = "${var.prefix}-bootstrap-automation-secrets"
+  location = var.automation_secret_location
 }
 
 resource "google_kms_crypto_key" "automation_secrets_regional" {
@@ -100,10 +101,9 @@ resource "google_kms_crypto_key" "automation_secrets_regional" {
 }
 
 resource "google_kms_key_ring" "state_replica" {
-  project    = google_project.seed.project_id
-  name       = "${var.prefix}-bootstrap-state-replica"
-  location   = var.state_replica_kms_location
-  depends_on = [google_project_service.seed]
+  project  = google_project_service.seed["cloudkms.googleapis.com"].project
+  name     = "${var.prefix}-bootstrap-state-replica"
+  location = var.state_replica_kms_location
 }
 
 resource "google_kms_crypto_key" "state_replica" {
@@ -122,21 +122,20 @@ resource "google_kms_crypto_key" "state_replica" {
   }
 }
 
-data "google_storage_project_service_account" "seed" {
-  project    = google_project.seed.project_id
-  depends_on = [google_project_service.seed]
-}
-
 resource "google_kms_crypto_key_iam_member" "state_primary_gcs" {
   crypto_key_id = google_kms_crypto_key.state_primary.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+  member        = "serviceAccount:service-${google_project.seed.number}@gs-project-accounts.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.seed["storage.googleapis.com"]]
 }
 
 resource "google_kms_crypto_key_iam_member" "state_replica_gcs" {
   crypto_key_id = google_kms_crypto_key.state_replica.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+  member        = "serviceAccount:service-${google_project.seed.number}@gs-project-accounts.iam.gserviceaccount.com"
+
+  depends_on = [google_project_service.seed["storage.googleapis.com"]]
 }
 
 # Data Access audit logs for the Ring-0 state and token-exchange surfaces. Normal
