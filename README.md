@@ -4,9 +4,9 @@
 <p align="center">
   <picture>
     <source media="(prefers-color-scheme: dark)"
-            srcset="docs/assets/brand/mc-lockup-horizontal-dark-1520w.png">
+            srcset="docs/assets/brand/mc-lockup-horizontal-dark-1080w.png">
     <source media="(prefers-color-scheme: light)"
-            srcset="docs/assets/brand/mc-lockup-horizontal-1520w.png">
+            srcset="docs/assets/brand/mc-lockup-horizontal-1080w.png">
     <img alt="Mindclade" src="docs/assets/brand/mc-lockup-horizontal-1520w.png" width="380">
   </picture>
 </p>
