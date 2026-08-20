@@ -43,6 +43,31 @@ output "artifact_signer_job_workflow_ref" {
   value       = local.github_signer_job_workflow_ref
 }
 
+output "artifact_release_identities" {
+  description = "Capability-specific GitHub WIF providers and exact principals for normal-plane release identities."
+  value = merge(
+    {
+      for capability, provider in google_iam_workload_identity_pool_provider.github_artifact_authority :
+      capability => {
+        workload_identity_provider = "${local.github_pool_name}/providers/${provider.workload_identity_pool_provider_id}"
+        principal                  = "principal://iam.googleapis.com/${local.github_pool_name}/subject/arc-${capability}:${local.github_artifact_authority_capabilities[capability].subject}"
+        subject                    = local.github_artifact_authority_capabilities[capability].subject
+        workflow_ref               = local.github_release_workflow_ref
+        job_workflow_ref           = local.github_artifact_authority_capabilities[capability].job_workflow_ref
+      }
+    },
+    {
+      signer = {
+        workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github[local.github_signer_repository].workload_identity_pool_provider_id}"
+        principal                  = local.github_signer_principal
+        subject                    = local.github_signer_subject
+        workflow_ref               = local.github_release_workflow_ref
+        job_workflow_ref           = local.github_signer_job_workflow_ref
+      }
+    },
+  )
+}
+
 output "buildkite_wif_pool_name" {
   value = local.buildkite_pool_name
 }

@@ -15,6 +15,7 @@
 | Recover damaged state | [State recovery](state-recovery.md) | Restore a prior generation, replica, or reconstructed state |
 | Use emergency access | [Break-glass](break-glass.md) | Grant, use, revoke, and review time-bound recovery access |
 | Rebuild the platform from zero | [Cold-start recovery](cold-start.md) | Restore control repositories in dependency order |
+| Plan and evidence recovery drills | [DR drill program](drill-program.md) | Use defined objectives, protected two-operator dispatch, and immutable reports |
 
 ## Getting started and handoff
 
@@ -35,6 +36,8 @@
 - [Credential and trust rotation](credential-rotation.md) — rotate keyless trust after a
   repository identity change or incident.
 - [Ring-0 disaster recovery](disaster-recovery.md) — incident-level recovery entry point.
+- [DR drill program](drill-program.md) — estate schedule, objectives, operator separation, and
+  report/evidence acceptance criteria.
 - [Clean-room recovery drill](../test/clean-room-recovery.md) — validate recovery on an
   isolated workstation.
 - [Scratch-organization drill](../test/scratch-org-drill.md) — prove the documentation works
