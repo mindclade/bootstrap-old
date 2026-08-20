@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # MINDCLADE CONFIDENTIAL - PROPRIETARY AND TRADE SECRET
 # Copyright (c) 2026 Mindclade. All rights reserved.
 """Validate the Mindclade production repository contract.
@@ -32,10 +32,25 @@ def repository_paths() -> list[Path]:
 
 TRACKED_PATHS = repository_paths()
 TRACKED_RELATIVE = {p.relative_to(ROOT).as_posix() for p in TRACKED_PATHS}
+LEGACY_GITHUB_IDENTITIES = (
+    "Mind" + "clade/",
+    "github.com/" + "Mind" + "clade",
+    "/orgs/" + "Mind" + "clade",
+)
 
 def tracked_prefix_exists(relative: str) -> bool:
     prefix = relative.rstrip("/")
     return prefix in TRACKED_RELATIVE or any(path.startswith(prefix + "/") for path in TRACKED_RELATIVE)
+
+repository_contract = (ROOT / "contracts/repository.yaml").read_text("utf-8", errors="ignore")
+for canonical_url in (
+    "https://github.com/enterprises/mindclade",
+    "https://github.com/mindclade",
+    "https://github.com/orgs/mindclade/repositories",
+    f"https://github.com/mindclade/{REPOSITORY}",
+):
+    if canonical_url not in repository_contract:
+        error(f"repository contract omits canonical GitHub URL: {canonical_url}")
 
 for rel in CONTRACT["required_paths"]:
     if not (ROOT/rel).exists(): error(f"missing required path: {rel}")
@@ -45,16 +60,20 @@ for p in TRACKED_PATHS:
     relative = p.relative_to(ROOT)
     if any(part in {".terraform",".terragrunt-cache","__MACOSX","__pycache__"} for part in relative.parts):
         error(f"local/cache artifact is tracked: {relative}")
-    if p.name.startswith("._") or ".tfstate" in p.name or p.suffix in {".pyc",".tfplan"}:
+    if p.name.startswith("._") or ".tfstate" in p.name or "tfplan" in p.name or p.suffix == ".pyc":
         error(f"generated/sensitive artifact is tracked: {relative}")
     if p.is_symlink(): error(f"symlink forbidden in delivery: {relative}")
+    if p.is_file() and p.stat().st_size <= 2_000_000:
+        text = p.read_text("utf-8", errors="ignore")
+        if any(legacy in text for legacy in LEGACY_GITHUB_IDENTITIES):
+            error(f"noncanonical GitHub organization identity in {relative}")
 
 # GitHub Actions must be immutable and least privilege.
 for p in (ROOT/".github/workflows").glob("*.y*ml") if (ROOT/".github/workflows").exists() else []:
     text=p.read_text("utf-8",errors="ignore")
     for use in re.findall(r"(?m)^\s*-?\s*uses:\s*([^#\s]+)",text):
         if use.startswith("./"): continue
-        if not (re.search(r"@[0-9a-f]{40}$",use) or re.search(r"@sha256:[0-9a-f]{64}$",use) or re.fullmatch(r"Mindclade/\.github/\.github/workflows/[^@]+@v[0-9]+\.[0-9]+\.[0-9]+",use)):
+        if not (re.search(r"@[0-9a-f]{40}$",use) or re.search(r"@sha256:[0-9a-f]{64}$",use) or re.fullmatch(r"mindclade/\.github/\.github/workflows/[^@]+@v[0-9]+\.[0-9]+\.[0-9]+",use)):
             error(f"workflow action is not immutable-pinned in {p.relative_to(ROOT)}: {use}")
     if "permissions:" not in text:
         error(f"workflow lacks explicit permissions: {p.relative_to(ROOT)}")
@@ -71,6 +90,31 @@ for p in TRACKED_PATHS:
     except:continue
     for pattern in secret_patterns:
         if pattern.search(text): error(f"possible credential in {p.relative_to(ROOT)}")
+
+# The versioned Ring-0 output is the supported downstream interface. Keep its descriptor,
+# schema, and Terraform declaration synchronized without requiring Terraform or cloud access.
+try:
+    output_schema=json.loads((ROOT/"contracts/outputs.schema.json").read_text("utf-8"))
+    platform_descriptor=json.loads((ROOT/"contracts/platform.json").read_text("utf-8"))
+except (OSError,json.JSONDecodeError) as exc:
+    error(f"invalid bootstrap output contract metadata: {exc}")
+else:
+    contract_version=platform_descriptor.get("contract_version")
+    if output_schema.get("properties",{}).get("contract_version",{}).get("const") != contract_version:
+        error("output schema and platform descriptor contract versions differ")
+    if platform_descriptor.get("terraform_output") != "platform_contract":
+        error("platform descriptor does not identify the platform_contract Terraform output")
+    outputs=(ROOT/"outputs.tf").read_text("utf-8",errors="ignore")
+    if 'output "platform_contract"' not in outputs:
+        error("missing versioned platform_contract Terraform output")
+    for field in output_schema.get("required",[]):
+        if field not in outputs:
+            error(f"platform_contract output is missing schema field: {field}")
+
+release_manifest=json.loads((ROOT/"RELEASE_MANIFEST.json").read_text("utf-8"))
+blueprint_path=release_manifest.get("blueprint","")
+if not blueprint_path or not (ROOT/blueprint_path).is_file():
+    error(f"release manifest blueprint path does not exist: {blueprint_path}")
 
 if REPOSITORY=="bootstrap":
     for forbidden in ("modules/folders","modules/governance"):

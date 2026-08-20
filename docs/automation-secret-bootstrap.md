@@ -1,7 +1,7 @@
 # Bootstrap automation secret
 
 `infrastructure-live` consumes private Terraform modules from
-`Mindclade/mindclade-internal-monorepo`. A clean organization has no normal security project
+`mindclade/mindclade-internal-monorepo`. A clean organization has no normal security project
 until infrastructure-live runs, so its module-reader credential cannot be created by that
 repository without a dependency cycle.
 
@@ -42,7 +42,7 @@ vault and Secret Manager version have been independently verified.
 
 1. Generate a new GitHub App private key.
 2. Add it as a new Secret Manager version.
-3. run an infrastructure-live plan and a harmless private-module fetch;
+3. Run an infrastructure-live plan and a harmless private-module fetch;
 4. disable the previous version;
 5. observe for the documented rollback window;
 6. destroy the previous version and revoke the old GitHub key;

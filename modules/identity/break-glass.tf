@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # Emergency access.
 #
 # The design constraint: an emergency path that is convenient becomes the normal path. This
@@ -36,13 +36,8 @@ resource "google_service_account_iam_member" "break_glass_impersonation" {
 # ---------------------------------------------------------------------------------------
 # The credential's value comes from the alert, not from the restriction. Someone determined
 # enough will find a way to elevate; what matters is that it is impossible to do quietly.
-
-resource "google_project_service" "monitoring" {
-  project = var.seed_project_id
-  service = "monitoring.googleapis.com"
-
-  disable_on_destroy = false
-}
+# The projects module is the sole owner of API enablement; the root module dependency ensures
+# Monitoring and Logging are enabled before these resources are created.
 
 resource "google_monitoring_notification_channel" "security" {
   project      = var.seed_project_id
@@ -62,7 +57,8 @@ resource "google_logging_metric" "break_glass_use" {
   filter = <<-EOT
     protoPayload.authenticationInfo.principalEmail="${google_service_account.break_glass.email}"
     OR (protoPayload.serviceName="iamcredentials.googleapis.com"
-        AND protoPayload.resourceName=~"${google_service_account.break_glass.unique_id}")
+        AND (resource.labels.email_id="${google_service_account.break_glass.email}"
+             OR protoPayload.resourceName=~"${google_service_account.break_glass.unique_id}"))
   EOT
 
   metric_descriptor {
@@ -134,4 +130,3 @@ resource "google_monitoring_alert_policy" "break_glass" {
     mime_type = "text/markdown"
   }
 }
-

@@ -11,10 +11,18 @@ on:
   push:
     branches: [main]
     paths:
+      - ".github/workflows/**"
+      - "scripts/**/*.sh"
+      - "**/*.yaml"
+      - "**/*.yml"
       - "flake.nix"
       - "flake.lock"
   pull_request:
     paths:
+      - ".github/workflows/**"
+      - "scripts/**/*.sh"
+      - "**/*.yaml"
+      - "**/*.yml"
       - "flake.nix"
       - "flake.lock"
   workflow_dispatch:
@@ -63,5 +71,13 @@ jobs:
         # unresolvable input surfaces here rather than inside a ten-minute build.
         run: nix flake metadata --no-write-lock-file
 
-      - name: Validate flake dev shell
-        run: nix develop --command bash -lc 'terraform -version'
+      - name: Validate pinned Terraform dev shell
+        run: |
+          want="$(tr -d '[:space:]' < .terraform-version)"
+          have="$(nix develop --command terraform version -json | jq -r .terraform_version)"
+          test "$have" = "$want"
+      - name: Run repository linters from the CI shell
+        run: |
+          nix develop .#ci --command actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml
+          nix develop .#ci --command yamllint -c .yamllint.yaml .
+          nix develop .#ci --command shellcheck scripts/*.sh

@@ -1,3 +1,21 @@
 # Bootstrap contracts
 
-The output contract is the only supported machine interface from Ring 0. It exports non-secret state, federation, and automation-identity identifiers. Consuming repositories must not read bootstrap implementation details or Terraform state directly.
+The `platform_contract` Terraform output is the only supported machine interface from Ring 0.
+It exports non-secret state, federation, recovery, and automation-identity identifiers.
+Consuming repositories must not read bootstrap implementation details or remote state directly.
+
+Contract `1.1.0` adds the signer-only GitHub trust tuple: `WIF_PROVIDER_SIGNER`, the exact
+protected-release principal for the normal-plane signer service account, and the immutable
+`v3.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
+roles remain owned by `infrastructure-live`; bootstrap owns only the federation trust anchor.
+
+Retrieve and validate the value after an approved apply:
+
+```sh
+terraform output -json platform_contract > platform-contract.json
+check-jsonschema --schemafile contracts/outputs.schema.json platform-contract.json
+```
+
+The generated `platform-contract.json` contains internal infrastructure identifiers. Keep it in
+an approved, access-controlled evidence store; do not commit it or publish it as a public CI
+artifact. Schema changes require a contract-version change and a coordinated consumer migration.

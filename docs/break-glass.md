@@ -13,6 +13,15 @@ critical alert, and any temporary grant must expire.
 
 Being in a hurry is not a break-glass condition.
 
+## Before production
+
+- Configure at least one named human operator; group principals are not accepted.
+- Ensure the security mailbox accepts mail from `alerting-noreply@google.com`.
+- Send a test notification and record delivery evidence before relying on the channel.
+- Confirm an unauthorized user cannot impersonate the account.
+- Confirm the authorized operator can impersonate it without holding any standing organization
+  permission through the account.
+
 ## Procedure
 
 ### 1. Declare the incident

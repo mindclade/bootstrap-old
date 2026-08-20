@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 variable "org_id" {
   description = "Google Cloud organization numeric ID."
@@ -120,9 +120,9 @@ variable "kms_protection_level" {
 }
 
 variable "github_org" {
-  description = "Canonical GitHub organization login."
+  description = "Canonical GitHub organization login: mindclade."
   type        = string
-  default     = "Mindclade"
+  default     = "mindclade"
 }
 
 variable "github_org_id" {
@@ -185,10 +185,11 @@ variable "buildkite_pipeline_ids" {
 variable "break_glass_principals" {
   description = "Named human users permitted to impersonate the no-standing-permission break-glass account."
   type        = set(string)
-  default     = []
   validation {
-    condition     = alltrue([for p in var.break_glass_principals : can(regex("^[^@[:space:]]+@[^@[:space:]]+$", p))])
-    error_message = "break_glass_principals must contain email addresses."
+    condition = length(var.break_glass_principals) > 0 && alltrue([
+      for p in var.break_glass_principals : can(regex("^[^@[:space:]]+@[^@[:space:]]+$", p))
+    ])
+    error_message = "break_glass_principals must contain at least one named human email address."
   }
 }
 
@@ -196,6 +197,10 @@ variable "security_contact" {
   description = "Group mailbox receiving break-glass alerts."
   type        = string
   default     = "security@mindclade.com"
+  validation {
+    condition     = can(regex("^[^@[:space:]]+@[^@[:space:]]+$", var.security_contact))
+    error_message = "security_contact must be an email address."
+  }
 }
 
 variable "labels" {

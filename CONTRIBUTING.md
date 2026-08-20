@@ -1,6 +1,6 @@
 # Contributing to `bootstrap`
 
-Organization-wide conventions live in the internal `Mindclade/.github` repository. This file
+Organization-wide conventions live in the internal `mindclade/.github` repository. This file
 adds Ring-0 requirements.
 
 ## Before editing
@@ -63,6 +63,7 @@ procedure.
 ```sh
 nix develop
 make validate
+make lint
 terraform fmt -check -recursive -diff
 terraform init -backend=false -input=false -lockfile=readonly
 terraform validate

@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 resource "google_project_service" "storage_transfer" {
   project = var.seed_project_id
@@ -12,6 +12,7 @@ resource "google_project_service" "storage_transfer" {
 }
 
 resource "google_storage_bucket" "replica" {
+  # checkov:skip=CKV_GCP_62:Cloud Audit Logs DATA_READ/DATA_WRITE is enabled in modules/projects/seed.tf; a second server-access-log bucket would add another Ring-0 state dependency.
   for_each = local.state_buckets
   project  = var.seed_project_id
   name     = "${var.prefix}-tfstate-${each.key}-replica-${var.suffix}"
@@ -73,6 +74,15 @@ resource "google_storage_bucket_iam_member" "transfer_sink_bucket_writer" {
   member   = "serviceAccount:${data.google_storage_transfer_project_service_account.seed.email}"
 }
 
+# The protected recovery workflow uses the read-only bootstrap plan identity. It already has
+# access to authoritative bootstrap state, so replica read access does not widen its data class;
+# it makes the documented independent recovery path testable without an apply identity.
+resource "google_storage_bucket_iam_member" "bootstrap_replica_recovery_reader" {
+  bucket = google_storage_bucket.replica["bootstrap"].name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.service_account_emails["bootstrap-plan"]}"
+}
+
 resource "google_storage_transfer_job" "state" {
   for_each    = local.state_buckets
   project     = var.seed_project_id
@@ -105,6 +115,11 @@ resource "google_storage_transfer_job" "state" {
       nanos   = 0
     }
     repeat_interval = "86400s"
+  }
+
+  logging_config {
+    log_actions       = ["FIND", "COPY"]
+    log_action_states = ["SUCCEEDED", "FAILED"]
   }
 
   depends_on = [

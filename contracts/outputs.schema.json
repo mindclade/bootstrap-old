@@ -1,118 +1,343 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "Mindclade Ring-0 output contract",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.1.0.schema.json",
+  "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
   "required": [
     "contract_version",
-    "state_bucket",
+    "organization_id",
+    "billing_account",
+    "bootstrap_folder_id",
     "state_project_id",
-    "cicd_project_id",
-    "workload_identity_provider",
-    "automation_identities"
+    "federation_project_id",
+    "state",
+    "github",
+    "buildkite",
+    "automation_identities",
+    "recovery",
+    "automation_secret"
   ],
   "properties": {
     "contract_version": {
-      "const": "1.0.0"
+      "const": "1.1.0"
     },
-    "state_bucket": {
+    "organization_id": {
       "type": "string",
-      "minLength": 3
+      "pattern": "^[0-9]+$"
+    },
+    "billing_account": {
+      "type": "string",
+      "pattern": "^[0-9A-F]{6}-[0-9A-F]{6}-[0-9A-F]{6}$"
+    },
+    "bootstrap_folder_id": {
+      "type": "string",
+      "pattern": "^folders/[0-9]+$"
     },
     "state_project_id": {
-      "type": "string",
-      "minLength": 6
+      "$ref": "#/$defs/project_id"
     },
-    "cicd_project_id": {
-      "type": "string",
-      "minLength": 6
+    "federation_project_id": {
+      "$ref": "#/$defs/project_id"
     },
-    "audit_project_id": {
-      "type": "string"
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "primary_location",
+        "primary_buckets",
+        "replica_buckets"
+      ],
+      "properties": {
+        "primary_location": {
+          "type": "string",
+          "minLength": 2
+        },
+        "primary_buckets": {
+          "$ref": "#/$defs/state_buckets"
+        },
+        "replica_buckets": {
+          "$ref": "#/$defs/state_buckets"
+        }
+      }
     },
-    "workload_identity_provider": {
-      "type": "string",
-      "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/.+/providers/.+$"
+    "github": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "organization",
+        "workload_identity_pool",
+        "workload_identity_providers",
+        "repository_identities",
+        "artifact_signer"
+      ],
+      "properties": {
+        "organization": {
+          "type": "string",
+          "minLength": 1
+        },
+        "workload_identity_pool": {
+          "$ref": "#/$defs/wif_pool"
+        },
+        "workload_identity_providers": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bootstrap",
+            "github-config",
+            "infrastructure-live",
+            "gitops",
+            "mindclade-internal-monorepo"
+          ],
+          "properties": {
+            "bootstrap": {
+              "$ref": "#/$defs/wif_provider"
+            },
+            "github-config": {
+              "$ref": "#/$defs/wif_provider"
+            },
+            "infrastructure-live": {
+              "$ref": "#/$defs/wif_provider"
+            },
+            "gitops": {
+              "$ref": "#/$defs/wif_provider"
+            },
+            "mindclade-internal-monorepo": {
+              "$ref": "#/$defs/wif_provider"
+            }
+          }
+        },
+        "repository_identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "bootstrap",
+            "github-config",
+            "infrastructure-live",
+            "gitops",
+            "mindclade-internal-monorepo"
+          ],
+          "properties": {
+            "bootstrap": {
+              "$ref": "#/$defs/repository_identity"
+            },
+            "github-config": {
+              "$ref": "#/$defs/repository_identity"
+            },
+            "infrastructure-live": {
+              "$ref": "#/$defs/repository_identity"
+            },
+            "gitops": {
+              "$ref": "#/$defs/repository_identity"
+            },
+            "mindclade-internal-monorepo": {
+              "$ref": "#/$defs/repository_identity"
+            }
+          }
+        },
+        "artifact_signer": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workload_identity_provider",
+            "principal",
+            "job_workflow_ref"
+          ],
+          "properties": {
+            "workload_identity_provider": {
+              "$ref": "#/$defs/wif_provider"
+            },
+            "principal": {
+              "$ref": "#/$defs/wif_principal"
+            },
+            "job_workflow_ref": {
+              "const": "mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
+            }
+          }
+        }
+      }
+    },
+    "buildkite": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "enabled",
+        "workload_identity_pool",
+        "workload_identity_provider"
+      ],
+      "properties": {
+        "enabled": {
+          "type": "boolean"
+        },
+        "workload_identity_pool": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/wif_pool"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "workload_identity_provider": {
+          "oneOf": [
+            {
+              "$ref": "#/$defs/wif_provider"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      }
     },
     "automation_identities": {
       "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "bootstrap-plan",
+        "bootstrap-drift",
+        "bootstrap-apply",
+        "github-config-plan",
+        "github-config-apply",
+        "infrastructure-live-plan",
+        "infrastructure-live-apply-foundation",
+        "infrastructure-live-apply-development",
+        "infrastructure-live-apply-staging",
+        "infrastructure-live-apply-production"
+      ],
+      "properties": {
+        "bootstrap-plan": {
+          "$ref": "#/$defs/service_account"
+        },
+        "bootstrap-drift": {
+          "$ref": "#/$defs/service_account"
+        },
+        "bootstrap-apply": {
+          "$ref": "#/$defs/service_account"
+        },
+        "github-config-plan": {
+          "$ref": "#/$defs/service_account"
+        },
+        "github-config-apply": {
+          "$ref": "#/$defs/service_account"
+        },
+        "infrastructure-live-plan": {
+          "$ref": "#/$defs/service_account"
+        },
+        "infrastructure-live-apply-foundation": {
+          "$ref": "#/$defs/service_account"
+        },
+        "infrastructure-live-apply-development": {
+          "$ref": "#/$defs/service_account"
+        },
+        "infrastructure-live-apply-staging": {
+          "$ref": "#/$defs/service_account"
+        },
+        "infrastructure-live-apply-production": {
+          "$ref": "#/$defs/service_account"
+        }
+      }
+    },
+    "recovery": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "break_glass_account"
+      ],
+      "properties": {
+        "break_glass_account": {
+          "$ref": "#/$defs/service_account"
+        }
+      }
+    },
+    "automation_secret": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "project_id",
+        "secret_id"
+      ],
+      "properties": {
+        "project_id": {
+          "$ref": "#/$defs/project_id"
+        },
+        "secret_id": {
+          "const": "github-app-terraform-pem"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "project_id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]$"
+    },
+    "bucket_name": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{1,61}[a-z0-9]$"
+    },
+    "service_account": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9-]{4,28}[a-z0-9]@[a-z][a-z0-9-]{4,28}[a-z0-9]\\.iam\\.gserviceaccount\\.com$"
+    },
+    "wif_pool": {
+      "type": "string",
+      "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+$"
+    },
+    "wif_provider": {
+      "type": "string",
+      "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/providers/[a-z0-9-]+$"
+    },
+    "wif_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/repo:mindclade/mindclade-internal-monorepo:environment:release$"
+    },
+    "repository_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "repository",
+        "repository_id"
+      ],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^[^/]+/[^/]+$"
+        },
+        "repository_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        }
+      }
+    },
+    "state_buckets": {
+      "type": "object",
+      "additionalProperties": false,
       "required": [
         "bootstrap",
         "github-config",
-        "infrastructure-live"
+        "infrastructure-live-development",
+        "infrastructure-live-staging",
+        "infrastructure-live-production"
       ],
       "properties": {
         "bootstrap": {
-          "type": "object",
-          "required": [
-            "plan",
-            "apply",
-            "drift"
-          ],
-          "properties": {
-            "plan": {
-              "type": "string",
-              "format": "email"
-            },
-            "apply": {
-              "type": "string",
-              "format": "email"
-            },
-            "drift": {
-              "type": "string",
-              "format": "email"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/$defs/bucket_name"
         },
         "github-config": {
-          "type": "object",
-          "required": [
-            "plan",
-            "apply",
-            "drift"
-          ],
-          "properties": {
-            "plan": {
-              "type": "string",
-              "format": "email"
-            },
-            "apply": {
-              "type": "string",
-              "format": "email"
-            },
-            "drift": {
-              "type": "string",
-              "format": "email"
-            }
-          },
-          "additionalProperties": false
+          "$ref": "#/$defs/bucket_name"
         },
-        "infrastructure-live": {
-          "type": "object",
-          "required": [
-            "plan",
-            "apply",
-            "drift"
-          ],
-          "properties": {
-            "plan": {
-              "type": "string",
-              "format": "email"
-            },
-            "apply": {
-              "type": "string",
-              "format": "email"
-            },
-            "drift": {
-              "type": "string",
-              "format": "email"
-            }
-          },
-          "additionalProperties": false
+        "infrastructure-live-development": {
+          "$ref": "#/$defs/bucket_name"
+        },
+        "infrastructure-live-staging": {
+          "$ref": "#/$defs/bucket_name"
+        },
+        "infrastructure-live-production": {
+          "$ref": "#/$defs/bucket_name"
         }
-      },
-      "additionalProperties": false
+      }
     }
   }
 }

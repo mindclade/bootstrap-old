@@ -37,6 +37,11 @@ The replica can be up to one transfer interval stale. Compare Cloud Audit Logs a
 to identify resources created after the replicated generation, then import those resources
 before any apply.
 
+The replica is independent by location, not by organization, seed project, KMS administration,
+or bootstrap apply authority. Treat a compromise of those shared control surfaces as a scenario
+that may require state reconstruction from live resources or a separately protected evidence
+backup.
+
 ## Option 3 — reconstruct state from live resources
 
 Use Cloud Asset Inventory to enumerate only bootstrap-owned resources:
@@ -92,6 +97,7 @@ Force-unlock only after proving no plan/apply still owns the lock.
 
 - run a no-change plan;
 - verify state object generations and replica health;
+- record observed replication lag and the exact primary/replica generations inspected;
 - review audit logs;
 - record the incident and exact recovered generation;
 - update `test/clean-room-recovery.md` if the drill did not cover the failure.

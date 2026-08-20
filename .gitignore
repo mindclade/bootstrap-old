@@ -1,6 +1,7 @@
 .terraform/
 .terragrunt-cache/
-*.tfplan
+*.tfplan*
+tfplan*
 *.tfstate
 *.tfstate.*
 terraform.tfvars
@@ -20,3 +21,6 @@ __pycache__/
 !.env.example
 credentials/
 kubeconfig*
+bootstrap-outputs.json
+remote-state-verification.json
+platform-contract.json

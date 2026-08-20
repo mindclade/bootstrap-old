@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 output "service_accounts" {
   value = { for key, sa in google_service_account.this : key => sa.email }
@@ -23,6 +23,23 @@ output "github_wif_repository_identities" {
       repository_id = id
     }
   }
+}
+
+output "artifact_signer_wif_provider" {
+  description = "Signer-only GitHub WIF provider for the internal monorepo release workflow."
+  value = "${local.github_pool_name}/providers/${
+    google_iam_workload_identity_pool_provider.github[local.github_signer_repository].workload_identity_pool_provider_id
+  }"
+}
+
+output "artifact_signer_principal" {
+  description = "Exact protected-release subject to bind to the normal-plane signer service account."
+  value       = local.github_signer_principal
+}
+
+output "artifact_signer_job_workflow_ref" {
+  description = "Exact released reusable workflow enforced by the signer-only WIF provider."
+  value       = local.github_signer_job_workflow_ref
 }
 
 output "buildkite_wif_pool_name" {

@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 locals {
   service_accounts = {
     bootstrap-plan = {
@@ -70,7 +70,7 @@ locals {
       display    = "Infrastructure live speculative plan"
       repo       = "infrastructure-live"
       apply_only = false
-      org_roles  = [
+      org_roles = [
         "roles/resourcemanager.organizationViewer",
         "roles/iam.securityReviewer",
         "roles/cloudasset.viewer",
@@ -161,13 +161,11 @@ resource "google_service_account" "this" {
 }
 
 resource "google_service_account_iam_member" "wif" {
-  for_each = local.service_accounts
+  for_each = local.wif_service_account_bindings
 
-  service_account_id = google_service_account.this[each.key].name
+  service_account_id = google_service_account.this[each.value.identity].name
   role               = "roles/iam.workloadIdentityUser"
-  member = each.value.apply_only ? (
-    "${local.principal_workflow_prefix[each.value.repo]}/${local.apply_workflows[each.key]}@refs/heads/main"
-  ) : local.principal_repo[each.value.repo]
+  member             = each.value.principal
 }
 
 resource "google_organization_iam_member" "automation" {

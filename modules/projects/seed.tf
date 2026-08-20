@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 resource "google_project" "seed" {
   name       = "${var.prefix}-b-seed"
@@ -126,13 +126,20 @@ resource "google_kms_crypto_key_iam_member" "state_replica_gcs" {
 resource "google_project_iam_audit_config" "ring0_data_access" {
   for_each = toset([
     "storage.googleapis.com",
-    "iamcredentials.googleapis.com",
-    "sts.googleapis.com",
+    # Service Account Credentials Data Access logs are enabled through the IAM API; Google
+    # Cloud does not support enabling them independently on iamcredentials.googleapis.com.
+    "iam.googleapis.com",
     "secretmanager.googleapis.com",
   ])
 
   project = google_project.seed.project_id
   service = each.value
+
+  # Service-account credential operations include Admin Read events. Enabling every class for
+  # these Ring-0 audit surfaces also keeps administrative reads of state/secret metadata visible.
+  audit_log_config {
+    log_type = "ADMIN_READ"
+  }
 
   audit_log_config {
     log_type = "DATA_READ"

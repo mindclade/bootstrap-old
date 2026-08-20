@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 # The infrastructure-live repository reads private Terraform modules before its
 # normal common-security project exists. Ring 0 therefore owns only the empty

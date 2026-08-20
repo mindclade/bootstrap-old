@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 # Ring 0 owns exactly one bootstrap folder. Supplying bootstrap_folder_id adopts an existing
 # folder without creating a second hierarchy.

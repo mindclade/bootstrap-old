@@ -43,9 +43,10 @@ Read the `state_buckets.bootstrap` output and run:
 
 ```sh
 STATE_BUCKET="<bootstrap-state-bucket>"
+REPLICA_BUCKET="<bootstrap-replica-bucket>"
 terraform init -migrate-state -input=false -backend-config="bucket=${STATE_BUCKET}"
 terraform state pull > remote-state-verification.json
-terraform plan -lock=false
+terraform plan -lock-timeout=20m
 ```
 
 The plan must be empty. Verify the remote state object and version history:
@@ -53,6 +54,17 @@ The plan must be empty. Verify the remote state object and version history:
 ```sh
 gcloud storage ls --all-versions "gs://${STATE_BUCKET}/bootstrap/**"
 ```
+
+After the first scheduled transfer completes, verify that the independently located replica
+contains the expected state object and generation:
+
+```sh
+gcloud storage ls --all-versions "gs://${REPLICA_BUCKET}/bootstrap/**"
+```
+
+Record the primary generation, replica generation, observed replication lag, and successful
+lock acquisition/release in the protected bootstrap recovery evidence. A readable bucket is
+not sufficient evidence that state locking and restore behavior work.
 
 ## 4. Bootstrap the private-module reader
 
@@ -78,14 +90,29 @@ unapproved artifact stores.
 Configure in `github-config`/GitHub Enterprise:
 
 - protected `main` and critical paths;
-- protected `bootstrap` environment;
+- protected `plan`, `bootstrap`, and `bootstrap-recovery-read` environments;
 - `WIF_PROVIDER_PLAN` / `WIF_PROVIDER_APPLY`;
+- `artifact_signer_wif_provider` as `WIF_PROVIDER_SIGNER`; the matching
+  `artifact_signer_principal` is consumed only by `infrastructure-live` when binding its
+  normal-plane signer service account;
 - `SA_BOOTSTRAP_PLAN`, `SA_BOOTSTRAP_DRIFT`, and `SA_BOOTSTRAP_APPLY`;
-- `TFSTATE_BUCKET` and required non-secret Terraform variables;
+- `TFSTATE_BUCKET`, `TFSTATE_REPLICA_BUCKET`, and required non-secret Terraform variables;
+- `GH_ORGANIZATION`, `GH_ORGANIZATION_ID`, and `GH_REPOSITORY_IDS_JSON`;
+- at least one named human in `BREAK_GLASS_PRINCIPALS_JSON`;
 - exact workflow authorization for `.github/workflows/apply.yml`.
+
+Before enabling release signing, verify a monorepo token from the protected `release`
+environment and `reusable-binauthz-sign.yml@v3.0.0` can exchange through the signer provider.
+Also record negative tests showing a builder job, an unprotected ref, a different environment,
+and a different reusable workflow are rejected.
 
 Run `plan.yml`, then a no-op protected `apply.yml` execution. Normal changes are Git-mediated
 from this point onward.
+
+The `plan` environment is part of the Google Cloud identity, not presentation-only metadata.
+Record successful plan token exchange plus failed exchange from an arbitrary workflow and
+branch. The scheduled recovery drill authenticates through its separate exact-main workflow
+binding while retaining the `bootstrap-recovery-read` GitHub environment.
 
 ## Prohibited
 

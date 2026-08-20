@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 # Copy to a secure, untracked tfvars file only for first apply/recovery. Normal CI values are
 # supplied through protected GitHub environment/repository variables.
 org_id          = "123456789012"
@@ -23,7 +23,7 @@ noncurrent_version_days  = 90
 noncurrent_version_count = 100
 kms_protection_level     = "SOFTWARE"
 
-github_org    = "Mindclade"
+github_org    = "mindclade"
 github_org_id = "12345678"
 github_repository_ids = {
   bootstrap                    = "100000001"

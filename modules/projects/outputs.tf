@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 output "bootstrap_folder_id" { value = local.bootstrap_folder_name }
 output "seed_project_id" { value = google_project.seed.project_id }

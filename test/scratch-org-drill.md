@@ -48,7 +48,7 @@ told you the estimate is wrong.
 |---|---|
 | Completed from docs alone | Yes |
 | Questions the operator had to ask | 0 blocking, ≤3 clarifying |
-| Total elapsed vs `cold-start.md` estimate | Within 50% |
+| Timing for every recovery stage recorded | Yes |
 | Steps needing deviation | ≤2 |
 | Steps in the wrong order in the docs | 0 |
 
@@ -58,7 +58,7 @@ Within one week, or it does not happen:
 
 1. **Fix the documentation.** Every gap the operator hit, in a PR. This is the deliverable —
    not the rebuilt org.
-2. **Update the timing table** in `cold-start.md` with the real numbers.
+2. **Update the qualification record** in `cold-start.md` with the real stage timings.
 3. **Tear down the scratch org.** Delete the projects, unlink billing, remove the domain.
 4. **Record the result** in the table below.
 

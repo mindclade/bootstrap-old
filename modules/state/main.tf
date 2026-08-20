@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 
 locals {
   state_buckets = {
@@ -20,8 +20,8 @@ locals {
     infrastructure-live-production  = ["infrastructure-live-plan"]
   }
   writers = {
-    bootstrap                       = ["bootstrap-apply"]
-    github-config                   = ["github-config-apply"]
+    bootstrap     = ["bootstrap-apply"]
+    github-config = ["github-config-apply"]
     infrastructure-live-development = [
       "infrastructure-live-apply-foundation",
       "infrastructure-live-apply-development",
@@ -48,6 +48,7 @@ locals {
 }
 
 resource "google_storage_bucket" "state" {
+  # checkov:skip=CKV_GCP_62:Cloud Audit Logs DATA_READ/DATA_WRITE is enabled in modules/projects/seed.tf; a second server-access-log bucket would add another Ring-0 state dependency.
   for_each = local.state_buckets
   project  = var.seed_project_id
   name     = "${var.prefix}-tfstate-${each.key}-${var.suffix}"

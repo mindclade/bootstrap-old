@@ -2,7 +2,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 name: plan
 
 on:
@@ -30,9 +30,9 @@ env:
   TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION || 'us' }}
   TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'europe-west4' }}
   TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'europe-west4' }}
-  TF_VAR_github_org: ${{ vars.GITHUB_ORG || 'Mindclade' }}
-  TF_VAR_github_org_id: ${{ vars.GITHUB_ORG_ID }}
-  TF_VAR_github_repository_ids: ${{ vars.GITHUB_REPOSITORY_IDS_JSON }}
+  TF_VAR_github_org: ${{ vars.GH_ORGANIZATION || 'mindclade' }}
+  TF_VAR_github_org_id: ${{ vars.GH_ORGANIZATION_ID }}
+  TF_VAR_github_repository_ids: ${{ vars.GH_REPOSITORY_IDS_JSON }}
   TF_VAR_enable_buildkite_wif: ${{ vars.ENABLE_BUILDKITE_WIF || 'false' }}
   TF_VAR_buildkite_organization_id: ${{ vars.BUILDKITE_ORGANIZATION_ID || '' }}
   TF_VAR_buildkite_pipeline_ids: ${{ vars.BUILDKITE_PIPELINE_IDS_JSON || '[]' }}
@@ -42,29 +42,30 @@ env:
 jobs:
   speculative:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    environment: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     permissions:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
           service_account: ${{ vars.SA_BOOTSTRAP_PLAN }}
           create_credentials_file: true
           export_environment_variables: true
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
       - name: Verify required configuration
         env:
           STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
-          REPOSITORY_IDS: ${{ vars.GITHUB_REPOSITORY_IDS_JSON }}
+          REPOSITORY_IDS: ${{ vars.GH_REPOSITORY_IDS_JSON }}
         run: |
           set -euo pipefail
           test -n "$STATE_BUCKET"
@@ -74,4 +75,4 @@ jobs:
           STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
         run: terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
       - name: Speculative plan
-        run: terraform plan -input=false -lock=false -no-color
+        run: terraform plan -input=false -lock-timeout=20m -no-color

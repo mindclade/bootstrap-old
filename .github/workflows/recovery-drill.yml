@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
       - run: |
@@ -41,15 +41,20 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
           service_account: ${{ vars.SA_BOOTSTRAP_PLAN }}
-      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db # v3
+      - uses: google-github-actions/setup-gcloud@aa5489c8933f4cc7a4f7d45035b3b1440c9c10db  # v3
       - name: Verify state bucket metadata and readable objects
         env:
           STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+          REPLICA_BUCKET: ${{ vars.TFSTATE_REPLICA_BUCKET }}
         run: |
           set -euo pipefail
+          test -n "$STATE_BUCKET"
+          test -n "$REPLICA_BUCKET"
           gcloud storage buckets describe "gs://${STATE_BUCKET}" --format='yaml(name,location,versioning_enabled,soft_delete_policy)'
-          gcloud storage ls "gs://${STATE_BUCKET}/bootstrap/**" | head -n 20
+          gcloud storage ls --all-versions "gs://${STATE_BUCKET}/bootstrap/**" | sed -n '1,20p'
+          gcloud storage buckets describe "gs://${REPLICA_BUCKET}" --format='yaml(name,location,versioning_enabled,soft_delete_policy)'
+          gcloud storage ls --all-versions "gs://${REPLICA_BUCKET}/bootstrap/**" | sed -n '1,20p'

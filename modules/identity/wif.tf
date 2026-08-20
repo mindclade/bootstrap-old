@@ -1,7 +1,7 @@
 # Copyright © 2026 Mindclade, LLC. All Rights Reserved.
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
-#
+
 locals {
   wif_repositories = {
     bootstrap                   = var.github_repository_ids["bootstrap"]
@@ -11,9 +11,31 @@ locals {
     mindclade-internal-monorepo = var.github_repository_ids["mindclade-internal-monorepo"]
   }
 
+  # The monorepo GitHub provider is intentionally a signer-only trust path. Heavy builds and
+  # qualification use Buildkite federation; only the protected release environment executing
+  # this versioned reusable workflow may exchange a GitHub token through this provider.
+  github_signer_repository       = "mindclade-internal-monorepo"
+  github_signer_environment      = "release"
+  github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
+  github_signer_subject          = "repo:${var.github_org}/${local.github_signer_repository}:environment:${local.github_signer_environment}"
+
   github_provider_audiences = {
     for repo, _ in local.wif_repositories : repo =>
     "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-${substr(replace(repo, "_", "-"), 0, 28)}"
+  }
+
+  github_provider_conditions = {
+    for repo, repository_id in local.wif_repositories : repo => join(" && ", concat([
+      "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+      "assertion.repository_id == ${jsonencode(repository_id)}",
+      "assertion.repository == ${jsonencode("${var.github_org}/${repo}")}",
+      "assertion.aud == ${jsonencode(local.github_provider_audiences[repo])}",
+      ], repo == local.github_signer_repository ? [
+      "assertion.sub == ${jsonencode(local.github_signer_subject)}",
+      "assertion.job_workflow_ref == ${jsonencode(local.github_signer_job_workflow_ref)}",
+      ] : [
+      "assertion.sub.startsWith(${jsonencode("repo:${var.github_org}/${repo}:")})",
+    ]))
   }
 }
 
@@ -25,6 +47,7 @@ resource "google_iam_workload_identity_pool" "github" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
+  # checkov:skip=CKV_GCP_125:Immutable owner/repository IDs, a repo-shaped subject, and an exact provider audience are enforced below; apply/plan authorization is narrower at the service-account binding.
   for_each = local.wif_repositories
   project  = var.cicd_project_id
 
@@ -46,12 +69,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
     "attribute.event_name"          = "assertion.event_name"
   }
 
-  attribute_condition = <<-EOT
-    assertion.repository_owner_id == "${var.github_org_id}" &&
-    assertion.repository_id == "${each.value}" &&
-    assertion.repository == "${var.github_org}/${each.key}" &&
-    assertion.aud == "${local.github_provider_audiences[each.key]}"
-  EOT
+  attribute_condition = local.github_provider_conditions[each.key]
 
   oidc {
     issuer_uri        = "https://token.actions.githubusercontent.com"
@@ -107,10 +125,6 @@ resource "google_iam_workload_identity_pool_provider" "buildkite" {
 
 locals {
   github_pool_name = "projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github"
-  principal_repo = {
-    for repo, _ in local.wif_repositories :
-    repo => "principalSet://iam.googleapis.com/${local.github_pool_name}/attribute.repository/${var.github_org}/${repo}"
-  }
   # Direct repository workflows expose workflow_ref. job_workflow_ref is only populated
   # when a job is executing inside a called reusable workflow, so it cannot be used to
   # authorize these repository-local apply workflows.
@@ -118,6 +132,58 @@ locals {
     for repo, _ in local.wif_repositories :
     repo => "principalSet://iam.googleapis.com/${local.github_pool_name}/attribute.workflow_ref/${var.github_org}/${repo}"
   }
+  # The infrastructure plan reads every live state scope and the private module credential.
+  # Bind it to GitHub's environment-shaped OIDC subject rather than every workflow in the repo.
+  principal_environment = {
+    bootstrap-plan           = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/bootstrap:environment:plan"
+    github-config-plan       = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/github-config:environment:plan"
+    infrastructure-live-plan = "principal://iam.googleapis.com/${local.github_pool_name}/subject/repo:${var.github_org}/infrastructure-live:environment:plan"
+  }
+
+  # Primary bindings are exhaustive: adding a service account without an explicit trust path
+  # fails during configuration evaluation instead of falling back to repository-wide trust.
+  primary_federated_principals = merge(
+    {
+      for identity, workflow in local.apply_workflows : identity =>
+      "${local.principal_workflow_prefix[local.service_accounts[identity].repo]}/${workflow}@refs/heads/main"
+    },
+    local.principal_environment,
+    {
+      bootstrap-drift = "${local.principal_workflow_prefix["bootstrap"]}/.github/workflows/drift.yml@refs/heads/main"
+    },
+  )
+
+  # Scheduled read-only consumers cannot wait for environment approval. Each receives only
+  # its exact protected-main workflow_ref, never a repository or branch wildcard.
+  additional_federated_principals = {
+    "bootstrap-plan:recovery-drill" = {
+      identity  = "bootstrap-plan"
+      principal = "${local.principal_workflow_prefix["bootstrap"]}/.github/workflows/recovery-drill.yml@refs/heads/main"
+    }
+    "github-config-plan:drift" = {
+      identity  = "github-config-plan"
+      principal = "${local.principal_workflow_prefix["github-config"]}/.github/workflows/drift.yml@refs/heads/main"
+    }
+    "infrastructure-live-plan:drift" = {
+      identity  = "infrastructure-live-plan"
+      principal = "${local.principal_workflow_prefix["infrastructure-live"]}/.github/workflows/drift.yml@refs/heads/main"
+    }
+    "infrastructure-live-plan:cost" = {
+      identity  = "infrastructure-live-plan"
+      principal = "${local.principal_workflow_prefix["infrastructure-live"]}/.github/workflows/cost.yml@refs/heads/main"
+    }
+  }
+
+  wif_service_account_bindings = merge(
+    {
+      for identity, principal in local.primary_federated_principals : identity => {
+        identity  = identity
+        principal = principal
+      }
+    },
+    local.additional_federated_principals,
+  )
+  github_signer_principal = "principal://iam.googleapis.com/${local.github_pool_name}/subject/${local.github_signer_subject}"
 
   buildkite_pool_name = var.enable_buildkite_wif ? "projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/buildkite" : null
 }

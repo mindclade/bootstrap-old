@@ -26,9 +26,9 @@ env:
   TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION || 'us' }}
   TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'europe-west4' }}
   TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'europe-west4' }}
-  TF_VAR_github_org: ${{ vars.GITHUB_ORG || 'Mindclade' }}
-  TF_VAR_github_org_id: ${{ vars.GITHUB_ORG_ID }}
-  TF_VAR_github_repository_ids: ${{ vars.GITHUB_REPOSITORY_IDS_JSON }}
+  TF_VAR_github_org: ${{ vars.GH_ORGANIZATION || 'mindclade' }}
+  TF_VAR_github_org_id: ${{ vars.GH_ORGANIZATION_ID }}
+  TF_VAR_github_repository_ids: ${{ vars.GH_REPOSITORY_IDS_JSON }}
   TF_VAR_enable_buildkite_wif: ${{ vars.ENABLE_BUILDKITE_WIF || 'false' }}
   TF_VAR_buildkite_organization_id: ${{ vars.BUILDKITE_ORGANIZATION_ID || '' }}
   TF_VAR_buildkite_pipeline_ids: ${{ vars.BUILDKITE_PIPELINE_IDS_JSON || '[]' }}
@@ -44,16 +44,16 @@ jobs:
       id-token: write
       issues: write
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
-      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3
+      - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
           service_account: ${{ vars.SA_BOOTSTRAP_DRIFT }}
           create_credentials_file: true
           export_environment_variables: true
-      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -64,20 +64,39 @@ jobs:
       - id: plan
         name: Detect drift
         run: |
+          set -uo pipefail
+          plan_file="${RUNNER_TEMP}/bootstrap-drift.tfplan"
+          error_file="${RUNNER_TEMP}/bootstrap-drift-error.txt"
           set +e
-          terraform plan -input=false -lock=false -detailed-exitcode -no-color > drift.txt 2>&1
+          terraform plan -input=false -lock-timeout=20m -detailed-exitcode -out="${plan_file}" >/dev/null 2>"${error_file}"
           code=$?
           set -e
-          case "$code" in
-            0) echo "drift=false" >> "$GITHUB_OUTPUT" ;;
-            2) echo "drift=true" >> "$GITHUB_OUTPUT" ;;
-            *) cat drift.txt; exit 1 ;;
+          case "${code}" in
+            0)
+              echo "drift=false" >> "${GITHUB_OUTPUT}"
+              jq -n --arg commit "${GITHUB_SHA}" '{drift: false, commit: $commit, creates: 0, updates: 0, deletes_or_replacements: 0}' > drift-summary.json
+              ;;
+            2)
+              echo "drift=true" >> "${GITHUB_OUTPUT}"
+              terraform show -json "${plan_file}" | jq --arg commit "${GITHUB_SHA}" '{
+                drift: true,
+                commit: $commit,
+                creates: ([.resource_changes[]? | select(.change.actions | index("create"))] | length),
+                updates: ([.resource_changes[]? | select(.change.actions == ["update"])] | length),
+                deletes_or_replacements: ([.resource_changes[]? | select(.change.actions | index("delete"))] | length)
+              }' > drift-summary.json
+              ;;
+            *)
+              jq -n --arg commit "${GITHUB_SHA}" '{drift: null, commit: $commit, error: "terraform plan failed; raw output discarded"}' > drift-summary.json
+              echo "::error::Terraform drift evaluation failed. Raw output is not retained because it can contain Ring-0 metadata."
+              exit 1
+              ;;
           esac
-      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         if: always()
         with:
           name: bootstrap-drift-${{ github.run_id }}
-          path: drift.txt
+          path: drift-summary.json
           if-no-files-found: error
           retention-days: 7
       - name: Maintain drift issue
@@ -100,6 +119,6 @@ jobs:
             echo
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo
-            echo '> The raw plan is intentionally not copied into an issue because Terraform plans can contain sensitive infrastructure metadata.'
+            echo '> Only action counts are retained. Raw plans can contain sensitive Ring-0 metadata and are intentionally discarded.'
           } > body.md
           if [[ -n "$issue" ]]; then gh issue edit "$issue" --body-file body.md; else gh issue create --title 'Ring-0 infrastructure drift' --label drift --label security --body-file body.md; fi
