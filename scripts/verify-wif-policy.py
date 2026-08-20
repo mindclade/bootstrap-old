@@ -309,6 +309,14 @@ plan_workflow = (root / ".github/workflows/plan.yml").read_text()
 apply_workflow = (root / ".github/workflows/apply.yml").read_text()
 drift_workflow = (root / ".github/workflows/drift.yml").read_text()
 recovery_workflow = (root / ".github/workflows/recovery-drill.yml").read_text()
+recovery_inspection_marker = "\n  inspect-state:\n"
+if recovery_inspection_marker not in recovery_workflow:
+    errors.append("recovery workflow is missing the inspect-state job")
+    recovery_inspection_workflow = ""
+else:
+    recovery_inspection_workflow = recovery_workflow.split(
+        recovery_inspection_marker, 1
+    )[1]
 for name, workflow in (("plan", plan_workflow), ("apply-plan", apply_workflow)):
     require("environment: plan", workflow, f"{name} protected plan environment")
 require(
@@ -318,7 +326,7 @@ require(
 )
 for name, workflow in (
     ("drift", drift_workflow),
-    ("recovery inspection", recovery_workflow),
+    ("recovery inspection", recovery_inspection_workflow),
 ):
     guard = '[[ "${GITHUB_REF}" == "refs/heads/main" ]]'
     require(guard, workflow, f"{name} protected-main pre-authentication guard")
