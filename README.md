@@ -167,10 +167,4 @@ and policy files carry the shared header defined in
 
 ---
 
-<p align="center">
-  <img alt="" src="docs/assets/brand/mc-submark-96.png" width="24"> <sub>© 2026 Mindclade, LLC · Proprietary and confidential</sub>
 
-</p>
-<p align="center">
-  <sub>© 2026 Mindclade, LLC · Proprietary and confidential</sub>
-</p>
