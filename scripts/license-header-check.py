@@ -13,21 +13,9 @@ import sys
 from pathlib import Path
 
 
-SUPPORTED_SUFFIXES = {
-    ".example",
-    ".hcl",
-    ".nix",
-    ".py",
-    ".sh",
-    ".tf",
-    ".yaml",
-    ".yml",
-}
+SUPPORTED_SUFFIXES = {".example", ".hcl", ".nix", ".py", ".sh", ".tf", ".yaml", ".yml"}
 EXCLUDED_PARTS = {".git", ".terraform", ".terragrunt-cache", "rendered"}
-EXCLUDED_PATHS = {
-    "bootstrap/argocd-install-ha.yaml",
-    "bootstrap/argocd-install.yaml",
-}
+EXCLUDED_PATHS = {"bootstrap/argocd-install-ha.yaml", "bootstrap/argocd-install.yaml"}
 
 
 def parse_args() -> argparse.Namespace:
@@ -46,10 +34,15 @@ def repository_root() -> Path:
 
 
 def load_header(root: Path) -> tuple[str, str, str]:
-    candidates = (root / "license-header.txt", Path(__file__).with_name("license-header.txt"))
+    candidates = (
+        root / "license-header.txt",
+        Path(__file__).with_name("license-header.txt"),
+    )
     header_file = next((path for path in candidates if path.is_file()), None)
     if header_file is None:
-        raise ValueError(f"missing license header file; checked: {', '.join(map(str, candidates))}")
+        raise ValueError(
+            f"missing license header file; checked: {', '.join(map(str, candidates))}"
+        )
     lines = header_file.read_text(encoding="utf-8-sig").splitlines()[:3]
     if len(lines) != 3 or any(not line.rstrip("\r") for line in lines):
         raise ValueError(f"invalid three-line proprietary header: {header_file}")
@@ -65,8 +58,7 @@ def relative_name(path: Path, root: Path) -> str:
 
 def is_target(path: Path, root: Path) -> bool:
     relative = relative_name(path, root)
-    parts = Path(relative).parts
-    if any(part in EXCLUDED_PARTS for part in parts):
+    if any(part in EXCLUDED_PARTS for part in Path(relative).parts):
         return False
     if relative.startswith("policy/templates/vendor/") or relative in EXCLUDED_PATHS:
         return False
@@ -86,9 +78,7 @@ def repository_files(root: Path) -> list[Path]:
 
 
 def header_offset(lines: list[str]) -> int:
-    if lines and (lines[0].startswith("#!") or lines[0] == "---"):
-        return 1
-    return 0
+    return 1 if lines and (lines[0].startswith("#!") or lines[0] == "---") else 0
 
 
 def has_header(path: Path, header: tuple[str, str, str]) -> bool:
@@ -101,21 +91,20 @@ def has_header(path: Path, header: tuple[str, str, str]) -> bool:
 
 def repair_header(path: Path, header: tuple[str, str, str]) -> None:
     original = path.read_text(encoding="utf-8-sig")
-    trailing_newline = original.endswith(("\n", "\r"))
     lines = original.splitlines()
     offset = header_offset(lines)
-    prefix = lines[:offset]
-    remainder = lines[offset:]
-    if remainder and remainder[0].startswith("# Copyright ") and "Mindclade, LLC" in remainder[0]:
+    prefix, remainder = lines[:offset], lines[offset:]
+    if (
+        remainder
+        and remainder[0].startswith("# Copyright ")
+        and "Mindclade, LLC" in remainder[0]
+    ):
         remainder = remainder[3:]
         if remainder and remainder[0] == "":
             remainder = remainder[1:]
     updated = prefix + list(header) + [""] + remainder
-    text = "\n".join(updated)
-    if trailing_newline or updated:
-        text += "\n"
     temporary = path.with_name(f".{path.name}.license-header.tmp")
-    temporary.write_text(text, encoding="utf-8")
+    temporary.write_text("\n".join(updated) + "\n", encoding="utf-8")
     temporary.chmod(path.stat().st_mode)
     temporary.replace(path)
 
@@ -129,7 +118,6 @@ def main() -> int:
     except (OSError, subprocess.CalledProcessError, ValueError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-
     failures: list[Path] = []
     fixed = 0
     for candidate in candidates:
@@ -146,7 +134,6 @@ def main() -> int:
                 f"Missing or malformed proprietary header: {relative_name(path, root)}",
                 file=sys.stderr,
             )
-
     if failures:
         print("License header check failed.", file=sys.stderr)
         return 1

@@ -36,7 +36,9 @@ for name, text in (("primary", primary), ("replica", replica)):
     ):
         require(token, text, f"{name} state safeguard: {token}")
     if "retention_policy {" in text or "is_locked = true" in text:
-        errors.append(f"{name} state bucket has a retention policy that can block state replacement")
+        errors.append(
+            f"{name} state bucket has a retention policy that can block state replacement"
+        )
 
 require(
     'google_storage_bucket_iam_member" "bootstrap_replica_recovery_reader',
@@ -56,17 +58,26 @@ lock_binding = (
     if lock_marker in primary and writer_marker in primary
     else ""
 )
-require('role     = "roles/storage.objectViewer"', reader_binding, "unconditional state read/list role")
+require(
+    'role     = "roles/storage.objectViewer"',
+    reader_binding,
+    "unconditional state read/list role",
+)
 for token, label in (
-    ('google_storage_bucket_iam_member" "reader_lock_object_admin', "read-only identity lock-object binding"),
+    (
+        'google_storage_bucket_iam_member" "reader_lock_object_admin',
+        "read-only identity lock-object binding",
+    ),
     ('role     = "roles/storage.objectAdmin"', "lock-object create/delete role"),
     (
-        'expression  = "resource.type == \'storage.googleapis.com/Object\' && resource.name.endsWith(\'.tflock\')"',
+        "expression  = \"resource.type == 'storage.googleapis.com/Object' && resource.name.endsWith('.tflock')\"",
         "typed lock-object-only IAM condition",
     ),
 ):
-    require(token, primary if token.startswith("google_storage") else lock_binding, label)
-if '.tfstate' in lock_binding:
+    require(
+        token, primary if token.startswith("google_storage") else lock_binding, label
+    )
+if ".tfstate" in lock_binding:
     errors.append("read-only identity IAM condition permits Terraform state writes")
 for token, label in (
     ("Activate native-lock IAM without deadlocking", "lock-IAM activation ordering"),
@@ -85,9 +96,18 @@ for token in ('"ADMIN_READ"', '"DATA_READ"', '"DATA_WRITE"'):
     require(token, cicd, f"CI federation audit class {token}")
 for service in ('"iam.googleapis.com"', '"sts.googleapis.com"'):
     require(service, cicd, f"CI federation audit service {service}")
-require('"iam.googleapis.com"', seed, "IAM-backed service-account credential audit logging")
-if '"iamcredentials.googleapis.com"' in seed.split('resource "google_project_iam_audit_config" "ring0_data_access"', 1)[-1]:
-    errors.append("Service Account Credentials audit logging is incorrectly configured on iamcredentials.googleapis.com")
+require(
+    '"iam.googleapis.com"', seed, "IAM-backed service-account credential audit logging"
+)
+if (
+    '"iamcredentials.googleapis.com"'
+    in seed.split('resource "google_project_iam_audit_config" "ring0_data_access"', 1)[
+        -1
+    ]
+):
+    errors.append(
+        "Service Account Credentials audit logging is incorrectly configured on iamcredentials.googleapis.com"
+    )
 
 if 'resource "google_project_service" "monitoring"' in break_glass:
     errors.append("Monitoring API has duplicate ownership in the identity module")

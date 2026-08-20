@@ -4,6 +4,7 @@
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
 set -euo pipefail
+IFS=$'\n\t'
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$root"
 
