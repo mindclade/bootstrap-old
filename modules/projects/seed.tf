@@ -122,20 +122,24 @@ resource "google_kms_crypto_key" "state_replica" {
   }
 }
 
+data "google_storage_project_service_account" "seed" {
+  project = google_project.seed.project_id
+
+  # Keep service-agent creation/readiness coupled only to the Storage API. An unrelated
+  # project-service addition must not make the state-key IAM member unknown during planning.
+  depends_on = [google_project_service.seed["storage.googleapis.com"]]
+}
+
 resource "google_kms_crypto_key_iam_member" "state_primary_gcs" {
   crypto_key_id = google_kms_crypto_key.state_primary.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:service-${google_project.seed.number}@gs-project-accounts.iam.gserviceaccount.com"
-
-  depends_on = [google_project_service.seed["storage.googleapis.com"]]
+  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
 }
 
 resource "google_kms_crypto_key_iam_member" "state_replica_gcs" {
   crypto_key_id = google_kms_crypto_key.state_replica.id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
-  member        = "serviceAccount:service-${google_project.seed.number}@gs-project-accounts.iam.gserviceaccount.com"
-
-  depends_on = [google_project_service.seed["storage.googleapis.com"]]
+  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
 }
 
 # Data Access audit logs for the Ring-0 state and token-exchange surfaces. Normal
