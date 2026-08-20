@@ -1,4 +1,10 @@
-# Credential and trust rotation
+<!-- mindclade-doc: how-to@1 -->
+
+# Rotate automation trust
+
+> **Audience:** platform and security engineers rotating federated CI trust.
+> **Outcome:** move each consumer to a new immutable trust binding while preserving negative
+> authorization guarantees and leaving no legacy principal active.
 
 Normal automation is keyless. Rotate trust by changing WIF providers, repository IDs,
 service-account bindings, and protected-environment policy—not by distributing JSON keys.
@@ -64,3 +70,14 @@ shape as denied, then prove positive and wrong-pipeline/wrong-step exchanges bef
 
 After break-glass use, remove temporary IAM grants, review audit logs, rotate any exposed
 recovery material, and record a post-incident review.
+
+## Completion criteria
+
+- Every intended consumer succeeds with the new exact subject, workflow, environment, and audience.
+- Wrong-repository, wrong-workflow, wrong-environment, and wrong-audience exchanges remain denied.
+- Old providers and IAM bindings are revoked after the new path is proven.
+- Token-exchange audit evidence and the protected change are linked in the rotation record.
+
+Run `make validate` before merging configuration changes. If the new path cannot be proven without
+broadening a condition, stop and escalate to the security owner; do not use a wildcard as a
+temporary bridge.

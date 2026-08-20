@@ -1,4 +1,10 @@
-# Bootstrap automation secret
+<!-- mindclade-doc: how-to@1 -->
+
+# Bootstrap the private-module reader secret
+
+> **Audience:** the named bootstrap operator provisioning or rotating the Terraform GitHub App key.
+> **Outcome:** add a Secret Manager version without exposing key material to Terraform, GitHub
+> Actions, repository files, or logs.
 
 `infrastructure-live` consumes private Terraform modules from
 `mindclade/mindclade-internal-monorepo`. A clean organization has no normal security project
@@ -50,3 +56,11 @@ vault and Secret Manager version have been independently verified.
 
 The GitOps render App uses a separate key and a separate secret container in the normal
 `mc-common-security` project owned by `infrastructure-live`.
+
+## Verify and recover
+
+Verify the enabled version metadata without printing the payload, then run a harmless
+`infrastructure-live` private-module initialization through its protected plan identity. Confirm
+that unrelated identities cannot access the secret. If the new version fails, re-enable the last
+known-good version during the approved rollback window and investigate the App installation,
+permissions, and Secret Manager IAM binding before destroying either version.

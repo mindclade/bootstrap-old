@@ -1,4 +1,10 @@
-# First apply and state migration
+<!-- mindclade-doc: how-to@1 -->
+
+# Perform the first apply and state migration
+
+> **Audience:** named bootstrap operators establishing Ring 0 in a clean organization.
+> **Outcome:** create bootstrap resources once, migrate immediately to protected remote state,
+> prove recovery evidence, and activate keyless automation.
 
 The first apply is the only time this repository may use local Terraform state.
 
@@ -143,3 +149,15 @@ direct write to the `.tfstate` object must remain denied by IAM.
 Do not enable an irreversible bucket retention lock. State protection is supplied by narrow
 IAM, native locking, versioning, soft delete, lifecycle controls, CMEK, and independent
 replication.
+
+## Completion criteria
+
+- Remote state and its replica contain the recorded generations and a no-change plan succeeds.
+- Native locking is observed in audit logs while direct plan-identity writes to `.tfstate` fail.
+- Protected plan/apply and scheduled recovery identities pass their positive and negative WIF tests.
+- The private-module reader works without key material entering Terraform or GitHub Actions.
+- Local plans, state, output files, and temporary credential material have been securely removed.
+
+If any criterion fails, keep automation disabled and follow [Terraform state recovery](state-recovery.md)
+or [break-glass](break-glass.md) as appropriate. Do not repeat the local first apply against an
+existing estate.

@@ -1,4 +1,11 @@
+<!-- mindclade-doc: runbook@1 -->
+
 # Terraform state recovery
+
+> **Use when:** Ring-0 Terraform state is missing, corrupt, stale, or inaccessible.
+> **Impact:** an incorrect recovery can orphan or replace organization-level resources.
+> **Owner:** bootstrap recovery operator with an independent reviewer.
+> **Escalate:** use [break-glass](break-glass.md) only when ordinary recovery access is insufficient.
 
 This runbook covers Ring-0 bootstrap state only. Stop all applies before beginning.
 
@@ -101,3 +108,8 @@ Force-unlock only after proving no plan/apply still owns the lock.
 - review audit logs;
 - record the incident and exact recovered generation;
 - update `test/clean-room-recovery.md` if the drill did not cover the failure.
+
+Do not resume protected applies until the reviewer accepts the no-change plan, state generation,
+replica comparison, and audit evidence. Escalate unresolved ownership, unexplained drift, or a
+primary/replica mismatch to the incident commander rather than selecting the newest object by
+timestamp alone.
