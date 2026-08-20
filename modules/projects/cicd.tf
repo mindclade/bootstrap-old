@@ -16,6 +16,7 @@ resource "google_project" "cicd" {
 
 resource "google_project_service" "cicd" {
   for_each = toset([
+    "cloudidentity.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
