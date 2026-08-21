@@ -26,5 +26,6 @@ jobs:
     with:
       watch-path-regex: '(^|/)(flake\.nix|flake\.lock|[^/]+\.nix|\.terraform-version)$|^\.github/workflows/.*nix.*\.ya?ml$'
       ci-command: make validate && make lint
+      enable-aarch64-linux: true
       enable-aarch64-darwin: true
       reproducibility-targets: .#packages.x86_64-linux.terraform

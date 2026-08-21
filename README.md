@@ -95,6 +95,11 @@ make lint
 make fmt-check
 ```
 
+The flake intentionally supports `x86_64-linux`, `aarch64-linux`, and
+`aarch64-darwin`. Its CI shell is the minimal validation closure; the default shell adds
+Terraform and operator tooling. NixOS, nix-darwin, and Home Manager host configuration remain
+outside this Ring-0 repository's authority.
+
 Expected result: shell, Terraform, WIF-policy, local-state, repository-contract, and
 license checks pass. `make plan-local` is reserved for the documented first apply or
 recovery path.
@@ -166,5 +171,4 @@ and policy files carry the shared header defined in
 | [`.github`](https://github.com/mindclade/.github) | Organization-wide conventions and canonical policies |
 
 ---
-
 
