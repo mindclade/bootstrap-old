@@ -26,7 +26,7 @@ locals {
   github_signer_environment      = "release"
   github_signer_ref              = "refs/heads/main"
   github_release_workflow_ref    = "${var.github_org}/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main"
-  github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0"
+  github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0"
   github_signer_subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
 
   # Every non-signer release capability gets a distinct provider and principal. None can be
@@ -35,19 +35,19 @@ locals {
   github_artifact_authority_capabilities = {
     canary = {
       subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
-      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-wif-canary.yml@refs/tags/v4.0.0"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-wif-canary.yml@refs/tags/v5.0.0"
     }
     builder = {
       subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
-      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-build.yml@refs/tags/v4.0.0"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-build.yml@refs/tags/v5.0.0"
     }
     qualification-reader = {
       subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
-      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-qualify.yml@refs/tags/v4.0.0"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-qualify.yml@refs/tags/v5.0.0"
     }
     qualifier = {
       subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
-      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-qualification-attest.yml@refs/tags/v4.0.0"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-qualification-attest.yml@refs/tags/v5.0.0"
     }
     promoter = {
       subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
@@ -87,7 +87,7 @@ locals {
     gitops              = var.github_repository_ids["gitops"]
   }
   github_dr_evidence_audience         = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-dr-evidence"
-  github_dr_evidence_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v4.0.0"
+  github_dr_evidence_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0"
   github_dr_evidence_subjects = merge([
     for repo, repository_id in local.github_dr_evidence_repositories : {
       for environment in ["scratch", "staging"] : "${repo}:${environment}" => {

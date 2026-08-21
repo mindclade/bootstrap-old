@@ -141,7 +141,7 @@ for token, label in (
         "immutable protected release signer subject",
     ),
     (
-        "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0",
+        "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0",
         "immutable v4 signer workflow",
     ),
     (
@@ -165,7 +165,7 @@ for token, label in (
         "manual-only DR evidence dispatch",
     ),
     (
-        "reusable-dr-evidence.yml@refs/tags/v4.0.0",
+        "reusable-dr-evidence.yml@refs/tags/v5.0.0",
         "immutable DR evidence workflow",
     ),
     (
@@ -262,7 +262,7 @@ for capability, workflow in (
     ("promoter", "reusable-gitops-promote.yml"),
 ):
     require(f"{capability} = {{", wif, f"ARC {capability} provider contract")
-    version = "v5.0.0" if capability == "promoter" else "v4.0.0"
+    version = "v5.0.0"
     require(
         f"{workflow}@refs/tags/{version}",
         wif,

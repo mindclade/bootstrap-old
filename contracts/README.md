@@ -6,7 +6,7 @@ Consuming repositories must not read bootstrap implementation details or remote 
 
 Contract `1.1.0` added the signer-only GitHub trust tuple: `WIF_PROVIDER_SIGNER`, the exact
 protected-release principal for the normal-plane signer service account, and the immutable
-`v4.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
+`v5.0.0` reusable workflow reference. The signer service account, KMS key, attestor, and their
 roles remain owned by `infrastructure-live`; bootstrap owns only the federation trust anchor.
 
 Contract `1.2.0` moves every GitHub principal to GitHub Cloud's immutable default subject

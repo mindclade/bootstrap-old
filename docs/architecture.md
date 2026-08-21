@@ -117,7 +117,7 @@ implementation paths directly.
 - Direct-workflow providers map only universal GitHub claims. The optional
   `job_workflow_ref`/`job_workflow_sha` claims are mapped only on the monorepo signer provider.
 - The monorepo signer provider accepts only the exact `refs/heads/main` ref with the protected
-  `release` subject executing the released `reusable-binauthz-sign.yml@v4.0.0`.
+  `release` subject executing the released `reusable-binauthz-sign.yml@v5.0.0`.
 - ARC canary, builder, qualification-reader, qualifier, signer, and promoter each use an exact
   capability provider restricted to protected-main push, exact caller, exact v4 reusable
   workflow, immutable repository IDs, and a provider-specific audience.

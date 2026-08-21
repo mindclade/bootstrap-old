@@ -154,7 +154,7 @@
               "$ref": "#/$defs/wif_principal"
             },
             "job_workflow_ref": {
-              "const": "mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0"
+              "const": "mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0"
             }
           }
         },
@@ -185,7 +185,7 @@
           "properties": {
             "workload_identity_provider": {"$ref": "#/$defs/wif_provider"},
             "job_workflow_ref": {
-              "const": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v4.0.0"
+              "const": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0"
             },
             "principals": {
               "type": "object",
@@ -391,7 +391,7 @@
         },
         "job_workflow_ref": {
           "type": "string",
-          "pattern": "^mindclade/\\.github/\\.github/workflows/reusable-(arc-[a-z0-9-]+|binauthz-sign)\\.yml@refs/tags/v4\\.0\\.0$|^mindclade/\\.github/\\.github/workflows/reusable-gitops-promote\\.yml@refs/tags/v5\\.0\\.0$"
+          "pattern": "^mindclade/\\.github/\\.github/workflows/reusable-(arc-[a-z0-9-]+|binauthz-sign|gitops-promote)\\.yml@refs/tags/v5\\.0\\.0$"
         }
       }
     },

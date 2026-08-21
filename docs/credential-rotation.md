@@ -43,7 +43,7 @@ The monorepo provider is a signer-only path. Its provider condition must require
 - `repo:mindclade@<owner-id>/mindclade-internal-monorepo@<repository-id>:environment:release`
   as the exact immutable subject;
 - `refs/heads/main` as the exact `ref`;
-- `mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v4.0.0`
+- `mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0`
   as the exact `job_workflow_ref`; and
 - the provider-specific audience.
 

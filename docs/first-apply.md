@@ -181,7 +181,7 @@ Configure in `github-config`/GitHub Enterprise:
 Before enabling release signing, protect the monorepo's `main` branch and create the `release`
 environment with required reviewers and a protected-branch deployment policy. Then verify a
 monorepo token from the exact `refs/heads/main` ref, protected `release` environment, and
-`reusable-binauthz-sign.yml@v4.0.0` can exchange through the signer provider. Also record
+`reusable-binauthz-sign.yml@v5.0.0` can exchange through the signer provider. Also record
 negative tests showing a builder job, an unprotected ref, a different environment, and a
 different reusable workflow are rejected.
 

@@ -6,7 +6,7 @@ repository ID is the security boundary; a matching name alone is not sufficient.
 `github_repository_ids.mindclade-internal-monorepo` is the canonical input. The canonical
 signer provider ID is `gh-mindclade-internal-monorepo`, and its condition requires the canonical
 repository name, immutable owner and repository IDs, exact audience, exact `refs/heads/main`
-ref, protected `release` environment, trusted-main push caller, and exact v4.0.0 signer workflow.
+ref, protected `release` environment, trusted-main push caller, and exact v5.0.0 signer workflow.
 
 ## Greenfield activation
 

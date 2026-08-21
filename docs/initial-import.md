@@ -11,7 +11,7 @@
 ## Before you begin
 
 - Publish and protect the `.github` workflow contract at the full version referenced by this
-  repository; the current ARC platform baseline is `v4.0.0`.
+  repository; the current ARC platform baseline is `v5.0.0`.
 - Preserve the destination repository's `.git` directory and existing audit history.
 - Confirm the repository is `private`, uses `main`, and matches `contracts/repository.yaml`.
 - Identify a named recovery operator and an independent qualified reviewer.
