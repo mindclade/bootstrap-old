@@ -66,6 +66,7 @@
         devShells.ci = pkgs.mkShell {
           packages = with pkgs; [
             actionlint
+            git
             shellcheck # actionlint shells out to it for `run:` blocks
             yamllint
           ];
@@ -82,6 +83,7 @@
             terraform-pinned
             google-cloud-sdk
             jq
+            git
             gh
             tflint
             shellcheck
