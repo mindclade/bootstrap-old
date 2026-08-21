@@ -13,7 +13,13 @@ variable "automation_secret_location" { type = string }
 variable "github_org" { type = string }
 variable "github_org_id" { type = string }
 variable "github_repository_ids" { type = map(string) }
-variable "enable_buildkite_wif" { type = bool }
+variable "enable_buildkite_wif" {
+  type = bool
+  validation {
+    condition     = var.enable_buildkite_wif == false
+    error_message = "Buildkite WIF cannot be activated after the ARC authority amendment."
+  }
+}
 variable "buildkite_organization_id" { type = string }
 variable "buildkite_pipeline_ids" { type = set(string) }
 variable "buildkite_pipeline_step_contracts" { type = map(set(string)) }

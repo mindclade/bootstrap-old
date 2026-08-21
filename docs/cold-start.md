@@ -123,9 +123,10 @@ incident commander decides whether to hold, roll back, or authorize reviewed for
 
 ## Qualification record
 
-Do not invent a recovery-time objective before the procedure has been timed end to end. Record
-each drill and use the latest successful independent drill as the operational baseline.
+The approved objective is defined in the [DR drill program](drill-program.md), but it is not a
+measured capability until this procedure is timed end to end. Record each execution using report
+schema v2 and use the latest independently observed passing report as the operational baseline.
 
 | Date | Operator | External control | Ring 0 | GitHub governance | Cloud layers | GitOps/apps | Total | Findings |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Not yet qualified | — | — | — | — | — | — | — | First independent drill required |
+| Not yet qualified | — | — | — | — | — | — | — | No validated report v2 exists; first independent scratch drill is scheduled in the drill program |

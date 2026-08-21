@@ -10,9 +10,9 @@
   outputs =
     { nixpkgs, ... }:
     let
-      # Ring-0 recovery must enumerate only platforms backed by reviewed Terraform artifacts.
-      # Do not inherit flake-utils' x86_64-darwin default: Mindclade's operator fleet is Apple
-      # Silicon and Nixpkgs drops Intel Darwin after 26.05.
+      # Ring-0 workflows execute on Linux/amd64 and Linux/arm64, and operators use Apple
+      # Silicon. Do not expose shell attributes for systems whose recovery-critical Terraform
+      # binary is not pinned.
       systems = [
         "x86_64-linux"
         "aarch64-linux"
@@ -24,7 +24,6 @@
         let
           pkgs = import nixpkgs {
             inherit system;
-            # Terraform is BUSL-licensed since 1.6.
             config.allowUnfreePredicate = package: nixpkgs.lib.getName package == "terraform";
           };
 
@@ -32,44 +31,42 @@
           # Fetch the exact CI version and verify it against HashiCorp's signed release checksum
           # inventory so local recovery never silently runs a different state engine.
           terraformVersion = "1.15.9";
-          terraformRelease =
-            {
-              aarch64-darwin = {
-                os = "darwin";
-                arch = "arm64";
-                hash = "sha256-BbJ1hqXX2EEFaQ7MzH7bv0i8PW1Xd0XLYfFjupkK308=";
-              };
-              aarch64-linux = {
-                os = "linux";
-                arch = "arm64";
-                hash = "sha256-CvpsKfYcpeonDpUOQ+UOzyQYtZhQe/WA6K524eZpmxk=";
-              };
-              x86_64-linux = {
-                os = "linux";
-                arch = "amd64";
-                hash = "sha256-du3Qsi0vJ9PS4JfNeTIJZG9xnPYPAv869iawc2ETfaE=";
-              };
-            }
-            .${system};
+          terraformSha = {
+            x86_64-linux = "sha256-du3Qsi0vJ9PS4JfNeTIJZG9xnPYPAv869iawc2ETfaE=";
+            aarch64-linux = "sha256-CvpsKfYcpeonDpUOQ+UOzyQYtZhQe/WA6K524eZpmxk=";
+            aarch64-darwin = "sha256-BbJ1hqXX2EEFaQ7MzH7bv0i8PW1Xd0XLYfFjupkK308=";
+          };
+          terraformPlatform = {
+            x86_64-linux = "linux_amd64";
+            aarch64-linux = "linux_arm64";
+            aarch64-darwin = "darwin_arm64";
+          };
+
           terraformPinned = pkgs.stdenvNoCC.mkDerivation {
             pname = "terraform";
             version = terraformVersion;
+
             src = pkgs.fetchurl {
-              url = "https://releases.hashicorp.com/terraform/${terraformVersion}/terraform_${terraformVersion}_${terraformRelease.os}_${terraformRelease.arch}.zip";
-              inherit (terraformRelease) hash;
+              url = "https://releases.hashicorp.com/terraform/${terraformVersion}/terraform_${terraformVersion}_${terraformPlatform.${system}}.zip";
+              hash = terraformSha.${system};
             };
-            nativeBuildInputs = [ pkgs.unzip ];
+
             dontUnpack = true;
+            nativeBuildInputs = [
+              pkgs.unzip
+            ]
+            ++ pkgs.lib.optional pkgs.stdenv.hostPlatform.isLinux pkgs.autoPatchelfHook;
+
             installPhase = ''
               runHook preInstall
-              mkdir -p "$out/bin" "$out/share/licenses/terraform"
               unzip -q "$src" -d release
-              install -m755 release/terraform "$out/bin/terraform"
+              install -Dm755 release/terraform "$out/bin/terraform"
               if [ -f release/LICENSE.txt ]; then
-                install -m644 release/LICENSE.txt "$out/share/licenses/terraform/LICENSE.txt"
+                install -Dm644 release/LICENSE.txt "$out/share/licenses/terraform/LICENSE.txt"
               fi
               runHook postInstall
             '';
+
             meta = with pkgs.lib; {
               description = "Terraform infrastructure-as-code CLI";
               homepage = "https://www.terraform.io/";
@@ -78,43 +75,27 @@
               platforms = [ system ];
             };
           };
-        in
-        {
-          inherit pkgs terraformPinned;
 
-          # ---------------------------------------------------------------------------------
-          # CI shell
-          # ---------------------------------------------------------------------------------
-          # CI-focused linters only. `default` below carries Terraform, the cloud SDK and
-          # infrastructure tooling — a large closure for a job that needs one binary, and `nix develop`
-          # with no argument is what a laptop wants rather than what a lint job does.
-          #
-          # It exists because .yamllint.yaml and .github/actionlint.yaml were in this repository
-          # with nothing running either of them. A config with no runner reads in review exactly
-          # like a gate and reports nothing.
           ciShell = pkgs.mkShell {
             packages = with pkgs; [
               actionlint
+              bashInteractive
               git
               gnumake
               python3
-              shellcheck # actionlint shells out to it for `run:` blocks
+              shellcheck
               yamllint
             ];
           };
 
           defaultShell = pkgs.mkShell {
-            # Versions track build/toolchains/versions.yaml in the monorepo. When that file
-            # moves, move this with it — two sources of truth for a toolchain version is how
-            # CI and a laptop end up disagreeing about a plan.
-            #
+
             # flake.lock makes the supporting package set reproducible; Terraform itself is the
             # checksum-pinned derivation above. The shellHook verifies all repository pins agree.
             packages = with pkgs; [
               terraformPinned
               google-cloud-sdk
               jq
-              git
               gh
               tflint
               shellcheck
@@ -145,20 +126,31 @@
               echo "Read docs/first-apply.md before running anything." >&2
             '';
           };
+        in
+        {
+          inherit
+            ciShell
+            defaultShell
+            pkgs
+            terraformPinned
+            ;
         };
     in
     {
       packages = forAllSystems (system: {
         terraform = (perSystem system).terraformPinned;
       });
+
       devShells = forAllSystems (system: {
         ci = (perSystem system).ciShell;
         default = (perSystem system).defaultShell;
       });
+
       checks = forAllSystems (system: {
         ci-shell = (perSystem system).ciShell;
         terraform = (perSystem system).terraformPinned;
       });
+
       formatter = forAllSystems (system: (perSystem system).pkgs.nixfmt);
     };
 }

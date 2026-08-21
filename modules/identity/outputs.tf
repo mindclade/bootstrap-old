@@ -43,6 +43,53 @@ output "artifact_signer_job_workflow_ref" {
   value       = local.github_signer_job_workflow_ref
 }
 
+output "artifact_release_identities" {
+  description = "Capability-specific GitHub WIF providers and exact principals for normal-plane release identities."
+  value = merge(
+    {
+      for capability, provider in google_iam_workload_identity_pool_provider.github_artifact_authority :
+      capability => {
+        workload_identity_provider = "${local.github_pool_name}/providers/${provider.workload_identity_pool_provider_id}"
+        principal                  = "principal://iam.googleapis.com/${local.github_pool_name}/subject/arc-${capability}:${local.github_artifact_authority_capabilities[capability].subject}"
+        subject                    = local.github_artifact_authority_capabilities[capability].subject
+        workflow_ref               = local.github_release_workflow_ref
+        job_workflow_ref           = local.github_artifact_authority_capabilities[capability].job_workflow_ref
+      }
+    },
+    {
+      signer = {
+        workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github[local.github_signer_repository].workload_identity_pool_provider_id}"
+        principal                  = local.github_signer_principal
+        subject                    = local.github_signer_subject
+        workflow_ref               = local.github_release_workflow_ref
+        job_workflow_ref           = local.github_signer_job_workflow_ref
+      }
+    },
+  )
+}
+
+output "dr_evidence_identity" {
+  description = "Exact WIF provider and protected-environment principals for append-only DR evidence publication."
+  value = {
+    workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github_dr_evidence.workload_identity_pool_provider_id}"
+    job_workflow_ref           = local.github_dr_evidence_job_workflow_ref
+    principals = {
+      for key, contract in local.github_dr_evidence_subjects : key =>
+      "principal://iam.googleapis.com/${local.github_pool_name}/subject/dr-evidence:${contract.subject}"
+    }
+  }
+}
+
+output "production_qualification_identity" {
+  description = "Exact WIF provider and principal for protected production qualification."
+  value = {
+    workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github_production_qualification.workload_identity_pool_provider_id}"
+    principal                  = "principal://iam.googleapis.com/${local.github_pool_name}/subject/production-qualification:${local.github_production_qualification_subject}"
+    subject                    = local.github_production_qualification_subject
+    workflow_ref               = local.github_production_qualification_workflow
+  }
+}
+
 output "buildkite_wif_pool_name" {
   value = local.buildkite_pool_name
 }

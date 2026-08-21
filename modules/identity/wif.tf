@@ -19,14 +19,41 @@ locals {
     "repo:${var.github_org}@${var.github_org_id}/${repo}@${repository_id}"
   }
 
-  # The monorepo GitHub provider is intentionally a signer-only trust path. Heavy builds and
-  # qualification use Buildkite federation; only the protected release environment executing
-  # this versioned reusable workflow may exchange a GitHub token through this provider.
+  # The monorepo provider remains the compatibility address for the signer capability. It is
+  # still exact: the protected release environment, trusted-main caller, push event, and
+  # immutable v4 reusable workflow must all agree.
   github_signer_repository       = "mindclade-internal-monorepo"
   github_signer_environment      = "release"
   github_signer_ref              = "refs/heads/main"
-  github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
+  github_release_workflow_ref    = "${var.github_org}/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main"
+  github_signer_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0"
   github_signer_subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
+
+  # Every non-signer release capability gets a distinct provider and principal. None can be
+  # exchanged by a direct workflow, pull request, tag, manual dispatch, API dispatch, custom
+  # ref, or a different released reusable workflow.
+  github_artifact_authority_capabilities = {
+    canary = {
+      subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-wif-canary.yml@refs/tags/v5.0.0"
+    }
+    builder = {
+      subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-build.yml@refs/tags/v5.0.0"
+    }
+    qualification-reader = {
+      subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-oci-qualify.yml@refs/tags/v5.0.0"
+    }
+    qualifier = {
+      subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:ref:${local.github_signer_ref}"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-arc-qualification-attest.yml@refs/tags/v5.0.0"
+    }
+    promoter = {
+      subject          = "${local.github_immutable_subject_prefixes[local.github_signer_repository]}:environment:${local.github_signer_environment}"
+      job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-gitops-promote.yml@refs/tags/v5.0.0"
+    }
+  }
 
   github_provider_audiences = {
     for repo, _ in local.wif_repositories : repo =>
@@ -42,10 +69,154 @@ locals {
       ], repo == local.github_signer_repository ? [
       "assertion.sub == ${jsonencode(local.github_signer_subject)}",
       "assertion.ref == ${jsonencode(local.github_signer_ref)}",
+      "assertion.event_name == \"push\"",
+      "assertion.workflow_ref == ${jsonencode(local.github_release_workflow_ref)}",
       "assertion.job_workflow_ref == ${jsonencode(local.github_signer_job_workflow_ref)}",
       ] : [
       "assertion.sub.startsWith(${jsonencode("${local.github_immutable_subject_prefixes[repo]}:")})",
     ]))
+  }
+
+  # DR evidence is separate from plans, applies, and artifact release. The provider accepts
+  # only standardized callers in repositories that own executable recovery procedures, only
+  # from protected scratch/staging environments, and only through the immutable shared workflow.
+  github_dr_evidence_repositories = {
+    bootstrap           = var.github_repository_ids["bootstrap"]
+    github-config       = var.github_repository_ids["github-config"]
+    infrastructure-live = var.github_repository_ids["infrastructure-live"]
+    gitops              = var.github_repository_ids["gitops"]
+  }
+  github_dr_evidence_audience         = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-dr-evidence"
+  github_dr_evidence_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0"
+  github_dr_evidence_subjects = merge([
+    for repo, repository_id in local.github_dr_evidence_repositories : {
+      for environment in ["scratch", "staging"] : "${repo}:${environment}" => {
+        repository    = "${var.github_org}/${repo}"
+        repository_id = repository_id
+        subject       = "${local.github_immutable_subject_prefixes[repo]}:environment:${environment}"
+        workflow_ref  = "${var.github_org}/${repo}/.github/workflows/dr-evidence.yml@refs/heads/main"
+      }
+    }
+  ]...)
+
+  # Final production qualification is a direct GitOps workflow, isolated from DR publication
+  # and ordinary GitOps render/provenance identities. All identity-bearing claims are exact.
+  github_production_qualification_repository = "gitops"
+  github_production_qualification_audience   = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-production-qualification"
+  github_production_qualification_subject    = "${local.github_immutable_subject_prefixes[local.github_production_qualification_repository]}:environment:production"
+  github_production_qualification_workflow   = "${var.github_org}/gitops/.github/workflows/production-qualification-evidence.yml@refs/heads/main"
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_dr_evidence" {
+  # checkov:skip=CKV_GCP_125:Owner/repository IDs, environment subjects, caller and reusable workflows, event, and audience are exact.
+  project = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-dr-evidence"
+  display_name                       = "DR evidence publisher"
+
+  attribute_mapping = {
+    "google.subject"                = "\"dr-evidence:\" + assertion.sub"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+    "attribute.event_name"          = "assertion.event_name"
+    "attribute.job_workflow_ref"    = "assertion.job_workflow_ref"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.aud == ${jsonencode(local.github_dr_evidence_audience)}",
+    "assertion.event_name == \"workflow_dispatch\"",
+    "assertion.job_workflow_ref == ${jsonencode(local.github_dr_evidence_job_workflow_ref)}",
+    "(${join(" || ", [for contract in values(local.github_dr_evidence_subjects) : "(assertion.repository_id == ${jsonencode(contract.repository_id)} && assertion.repository == ${jsonencode(contract.repository)} && assertion.sub == ${jsonencode(contract.subject)} && assertion.workflow_ref == ${jsonencode(contract.workflow_ref)})"])})",
+  ])
+
+  oidc {
+    issuer_uri        = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [local.github_dr_evidence_audience]
+  }
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_production_qualification" {
+  # checkov:skip=CKV_GCP_125:Owner/repository IDs, production subject, main ref, direct workflow, event, and audience are exact.
+  project = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-production-qualification"
+  display_name                       = "Production qualification"
+
+  attribute_mapping = {
+    "google.subject"                = "\"production-qualification:\" + assertion.sub"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.ref"                 = "assertion.ref"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+    "attribute.event_name"          = "assertion.event_name"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.repository_id == ${jsonencode(var.github_repository_ids[local.github_production_qualification_repository])}",
+    "assertion.repository == ${jsonencode("${var.github_org}/${local.github_production_qualification_repository}")}",
+    "assertion.aud == ${jsonencode(local.github_production_qualification_audience)}",
+    "assertion.sub == ${jsonencode(local.github_production_qualification_subject)}",
+    "assertion.ref == \"refs/heads/main\"",
+    "assertion.event_name == \"workflow_dispatch\"",
+    "assertion.workflow_ref == ${jsonencode(local.github_production_qualification_workflow)}",
+  ])
+
+  oidc {
+    issuer_uri        = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [local.github_production_qualification_audience]
+  }
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_artifact_authority" {
+  # checkov:skip=CKV_GCP_125:Every immutable identity and execution claim is matched exactly.
+  for_each = local.github_artifact_authority_capabilities
+  project  = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-arc-${each.key}"
+  display_name                       = "ARC ${each.key}"
+
+  attribute_mapping = {
+    # A workload-identity pool principal is keyed by google.subject, not by provider.
+    # Prefixing the immutable GitHub subject prevents a token accepted by one ARC provider
+    # from inheriting a different capability's service-account binding.
+    "google.subject"                = "\"arc-${each.key}:\" + assertion.sub"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.ref"                 = "assertion.ref"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+    "attribute.event_name"          = "assertion.event_name"
+    "attribute.job_workflow_ref"    = "assertion.job_workflow_ref"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.repository_id == ${jsonencode(var.github_repository_ids[local.github_signer_repository])}",
+    "assertion.repository == ${jsonencode("${var.github_org}/${local.github_signer_repository}")}",
+    "assertion.aud == ${jsonencode("https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-arc-${each.key}")}",
+    "assertion.sub == ${jsonencode(each.value.subject)}",
+    "assertion.ref == ${jsonencode(local.github_signer_ref)}",
+    "assertion.event_name == \"push\"",
+    "assertion.workflow_ref == ${jsonencode(local.github_release_workflow_ref)}",
+    "assertion.job_workflow_ref == ${jsonencode(each.value.job_workflow_ref)}",
+  ])
+
+  oidc {
+    issuer_uri = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [
+      "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-arc-${each.key}"
+    ]
   }
 }
 
@@ -153,7 +324,7 @@ resource "google_iam_workload_identity_pool_provider" "buildkite" {
     assertion.pipeline_id in ${jsonencode(sort(tolist(var.buildkite_pipeline_ids)))} &&
     assertion.runner_environment == "self-hosted" &&
     assertion.build_branch == "main" &&
-    assertion.build_source in ["webhook", "api"] &&
+    assertion.build_source == "webhook" &&
     (${local.buildkite_pipeline_step_condition}) &&
     assertion.aud == "${local.buildkite_provider_audience}"
   EOT

@@ -141,12 +141,44 @@ for token, label in (
         "immutable protected release signer subject",
     ),
     (
-        "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0",
-        "immutable v3 signer workflow",
+        "${var.github_org}/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0",
+        "immutable v4 signer workflow",
+    ),
+    (
+        "assertion.workflow_ref == ${jsonencode(local.github_release_workflow_ref)}",
+        "exact trusted-main release caller",
+    ),
+    (
+        'assertion.event_name == \\"push\\"',
+        "push-only artifact authority",
     ),
     (
         'github_signer_principal = "principal://iam.googleapis.com/',
         "exact signer principal",
+    ),
+    (
+        'resource "google_iam_workload_identity_pool_provider" "github_dr_evidence"',
+        "dedicated DR evidence provider",
+    ),
+    (
+        'assertion.event_name == \\"workflow_dispatch\\"',
+        "manual-only DR evidence dispatch",
+    ),
+    (
+        "reusable-dr-evidence.yml@refs/tags/v5.0.0",
+        "immutable DR evidence workflow",
+    ),
+    (
+        'resource "google_iam_workload_identity_pool_provider" "github_production_qualification"',
+        "dedicated production qualification provider",
+    ),
+    (
+        "production-qualification-evidence.yml@refs/heads/main",
+        "exact production qualification workflow",
+    ),
+    (
+        "environment:production",
+        "protected production qualification subject",
     ),
 ):
     require(token, wif, label)
@@ -157,6 +189,9 @@ for name in (
     "artifact_signer_wif_provider",
     "artifact_signer_principal",
     "artifact_signer_job_workflow_ref",
+    "artifact_release_identities",
+    "dr_evidence_identity",
+    "production_qualification_identity",
 ):
     require(f'output "{name}"', outputs, f"root signer contract output {name}")
     require(
@@ -168,7 +203,7 @@ require(
     "exported immutable GitHub owner ID",
 )
 require(
-    "repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:environment:release",
+    "mindclade-internal-monorepo@[0-9]+:(environment:release|ref:refs/heads/main)",
     output_schema,
     "immutable signer principal contract pattern",
 )
@@ -214,6 +249,35 @@ if '"google.subject"               = "assertion.sub"' in buildkite_block:
     errors.append(
         "Buildkite provider maps the potentially overlong default compound subject"
     )
+if 'assertion.build_source == "webhook"' not in buildkite_block:
+    errors.append("deprecated Buildkite provider is not webhook-only")
+if 'assertion.build_source in ["webhook", "api"]' in buildkite_block:
+    errors.append("deprecated Buildkite provider still permits API-triggered builds")
+
+for capability, workflow in (
+    ("canary", "reusable-arc-wif-canary.yml"),
+    ("builder", "reusable-arc-oci-build.yml"),
+    ("qualification-reader", "reusable-arc-oci-qualify.yml"),
+    ("qualifier", "reusable-arc-qualification-attest.yml"),
+    ("promoter", "reusable-gitops-promote.yml"),
+):
+    require(f"{capability} = {{", wif, f"ARC {capability} provider contract")
+    version = "v5.0.0"
+    require(
+        f"{workflow}@refs/tags/{version}",
+        wif,
+        f"ARC {capability} immutable reusable workflow",
+    )
+require(
+    '"google.subject"                = "\\\"arc-${each.key}:\\\" + assertion.sub"',
+    wif,
+    "provider-distinct ARC federated subject mapping",
+)
+require(
+    "subject/arc-${capability}:${local.github_artifact_authority_capabilities[capability].subject}",
+    module_outputs,
+    "provider-distinct ARC exported principal",
+)
 if re.search(r"mindclade/\*|principalSet[^\n]*/\*", all_tf):
     errors.append("organization-wide WIF wildcard")
 if re.search(

@@ -20,7 +20,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "bootstrap"
 CONTRACT = json.loads(
-    '{"authority": ["ring0-state", "automation-federation", "seed-projects", "break-glass-recovery"], "forbidden_authority": ["normal-folders", "normal-org-policy", "workload-projects", "networks", "gke", "kubernetes-desired-state"], "forbidden_paths": ["modules/folders", "modules/governance", ".terraform", ".terragrunt-cache"], "repository_class": "enterprise-control", "required_paths": ["modules/state", "modules/identity", "modules/projects", "modules/naming", "docs/first-apply.md", "docs/break-glass.md", "docs/state-recovery.md"], "visibility": "private"}'
+    '{"authority": ["ring0-state", "automation-federation", "seed-projects", "break-glass-recovery"], "forbidden_authority": ["normal-folders", "normal-org-policy", "workload-projects", "networks", "gke", "kubernetes-desired-state"], "forbidden_paths": ["modules/folders", "modules/governance", ".terraform", ".terragrunt-cache"], "repository_class": "enterprise-control", "required_paths": ["AGENTS.md", "modules/state", "modules/identity", "modules/projects", "modules/naming", "docs/first-apply.md", "docs/break-glass.md", "docs/state-recovery.md"], "visibility": "private"}'
 )
 ERRORS = []
 
@@ -219,6 +219,27 @@ if REPOSITORY == "bootstrap":
         )
     if '"google.subject"               = "assertion.sub"' in buildkite:
         error("Buildkite WIF maps the potentially overlong compound default subject")
+    if 'assertion.build_source == "webhook"' not in buildkite:
+        error("deprecated Buildkite WIF is not restricted to webhook builds")
+    if 'assertion.build_source in ["webhook", "api"]' in buildkite:
+        error("deprecated Buildkite WIF still admits API-triggered builds")
+    for capability in (
+        "canary",
+        "builder",
+        "qualification-reader",
+        "qualifier",
+        "promoter",
+    ):
+        if f"{capability} = {{" not in wif:
+            error(f"ARC WIF capability is missing: {capability}")
+    for token in (
+        'resource "google_iam_workload_identity_pool_provider" "github_production_qualification"',
+        "production-qualification-evidence.yml@refs/heads/main",
+        'assertion.event_name == \\"workflow_dispatch\\"',
+        "environment:production",
+    ):
+        if token not in wif:
+            error(f"production qualification WIF contract is missing: {token}")
 elif REPOSITORY == "github-config":
     text = (ROOT / "catalog/repositories.yaml").read_text("utf-8", errors="ignore")
     for repo in (
