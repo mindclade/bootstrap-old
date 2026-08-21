@@ -31,12 +31,16 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
           persist-credentials: false
+      - name: Validate repository home
+        uses: mindclade/.github/actions/validate-repository-home@f4744c44959dc699870565f630dccc6f986821da  # v4.0.0
+        with:
+          local-validator-path: scripts/validate-repository-home.py
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
       - name: Repository invariants
-        run: make validate
+        run: make validate-core
       - name: Terraform format
         run: terraform fmt -check -recursive -diff
       - name: Terraform initialize without backend

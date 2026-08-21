@@ -25,7 +25,7 @@ jobs:
     uses: mindclade/.github/.github/workflows/reusable-nix-qualification.yml@ccae13968c4112aaa918accd08a5de0214cf58b1
     with:
       watch-path-regex: '(^|/)(flake\.nix|flake\.lock|[^/]+\.nix|\.terraform-version)$|^\.github/workflows/.*nix.*\.ya?ml$'
-      ci-command: make validate && make lint
+      ci-command: make validate-core && make lint
       enable-aarch64-linux: true
       enable-aarch64-darwin: true
       reproducibility-targets: .#packages.x86_64-linux.terraform

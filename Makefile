@@ -1,6 +1,8 @@
-.PHONY: validate validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
-validate: validate-production-contract validate-repository-home
+validate: validate-core validate-repository-home
+
+validate-core: validate-production-contract
 	bash scripts/validate.sh
 
 validate-repository-home:
