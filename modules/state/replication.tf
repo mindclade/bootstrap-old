@@ -114,7 +114,8 @@ resource "google_storage_transfer_job" "state" {
       seconds = 0
       nanos   = 0
     }
-    repeat_interval = "86400s"
+    # Hourly bounds source-to-recovery state lag while retaining deletion independence.
+    repeat_interval = "3600s"
   }
 
   logging_config {

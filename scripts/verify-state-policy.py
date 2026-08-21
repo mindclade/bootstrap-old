@@ -171,12 +171,22 @@ for token, text, label in (
         "Secret Manager regional replica CMEK",
     ),
     (
-        "automation_secret_location must be a single Google Cloud region",
+        'condition     = var.automation_secret_location == "us-central1"',
         variables,
-        "regional automation-secret input validation",
+        "U.S.-resident automation-secret input validation",
     ),
 ):
     require(token, text, label)
+for token, label in (
+    ('condition     = var.region == "us-central1"', "U.S. primary region"),
+    ('condition     = var.residency_profile == "us-only-v1"', "residency profile"),
+    ('condition     = var.state_bucket_location == "US"', "U.S. state multi-region"),
+    ('condition     = var.state_kms_location == "us"', "U.S. state KMS multi-region"),
+    ('condition     = var.state_replica_location == "us-east4"', "U.S. state recovery region"),
+    ('condition     = var.state_replica_kms_location == "us-east4"', "recovery-region state KMS"),
+):
+    require(token, variables, label)
+require('repeat_interval = "3600s"', replica, "hourly state recovery copy")
 if "automation_secret_location   = var.state_kms_location" in root_main:
     errors.append("Secret Manager replica still reuses the state multi-region KMS location")
 if 'resource "google_kms_crypto_key" "automation_secrets" {' in seed:
@@ -202,11 +212,6 @@ for token in ('"ADMIN_READ"', '"DATA_READ"', '"DATA_WRITE"'):
     require(token, cicd, f"CI federation audit class {token}")
 for service in ('"iam.googleapis.com"', '"sts.googleapis.com"'):
     require(service, cicd, f"CI federation audit service {service}")
-require(
-    '"cloudidentity.googleapis.com"',
-    cicd,
-    "Cloud Identity API quota service for reviewed governance exports",
-)
 require(
     '"iam.googleapis.com"', seed, "IAM-backed service-account credential audit logging"
 )

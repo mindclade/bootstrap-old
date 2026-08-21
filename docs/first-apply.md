@@ -17,7 +17,7 @@ exact clean-commit export that deliberately omits `backend.tf`.
 - Google Cloud organization and billing ownership.
 - A named recovery identity protected by phishing-resistant MFA.
 - Immutable numeric GitHub organization and repository IDs.
-- Immutable Buildkite organization/pipeline UUIDs if Buildkite WIF is enabled.
+- Immutable GitHub organization and repository IDs for every WIF subject.
 - A secure local workstation and encrypted operations vault.
 - No service-account JSON keys.
 
@@ -170,9 +170,8 @@ Configure in `github-config`/GitHub Enterprise:
 - protected `main` and critical paths;
 - protected `plan`, `bootstrap`, `bootstrap-recovery-read`, and `break-glass` environments;
 - `WIF_PROVIDER_PLAN` / `WIF_PROVIDER_APPLY`;
-- `artifact_signer_wif_provider` as `WIF_PROVIDER_SIGNER`; the matching
-  `artifact_signer_principal` is consumed only by `infrastructure-live` when binding its
-  normal-plane signer service account;
+- `artifact_release_identities` as the six capability-specific ARC provider/principal
+  contracts; `infrastructure-live` binds each only to its matching normal-plane service account;
 - `SA_BOOTSTRAP_PLAN`, `SA_BOOTSTRAP_DRIFT`, and `SA_BOOTSTRAP_APPLY`;
 - `TFSTATE_BUCKET`, `TFSTATE_REPLICA_BUCKET`, and required non-secret Terraform variables;
 - `GH_ORGANIZATION`, `GH_ORGANIZATION_ID`, and `GH_REPOSITORY_IDS_JSON`;
@@ -182,7 +181,7 @@ Configure in `github-config`/GitHub Enterprise:
 Before enabling release signing, protect the monorepo's `main` branch and create the `release`
 environment with required reviewers and a protected-branch deployment policy. Then verify a
 monorepo token from the exact `refs/heads/main` ref, protected `release` environment, and
-`reusable-binauthz-sign.yml@v3.0.0` can exchange through the signer provider. Also record
+`reusable-binauthz-sign.yml@v4.0.0` can exchange through the signer provider. Also record
 negative tests showing a builder job, an unprotected ref, a different environment, and a
 different reusable workflow are rejected.
 
