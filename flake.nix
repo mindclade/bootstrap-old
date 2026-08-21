@@ -10,10 +10,12 @@
   outputs =
     { nixpkgs, ... }:
     let
-      # Ring-0 workflows execute on Linux/amd64 and operators use Apple Silicon. Do not expose
-      # shell attributes for systems whose recovery-critical Terraform binary is not pinned.
+      # Ring-0 workflows execute on Linux/amd64 and Linux/arm64, and operators use Apple
+      # Silicon. Do not expose shell attributes for systems whose recovery-critical Terraform
+      # binary is not pinned.
       systems = [
         "x86_64-linux"
+        "aarch64-linux"
         "aarch64-darwin"
       ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
@@ -31,10 +33,12 @@
           terraformVersion = "1.15.9";
           terraformSha = {
             x86_64-linux = "sha256-du3Qsi0vJ9PS4JfNeTIJZG9xnPYPAv869iawc2ETfaE=";
+            aarch64-linux = "sha256-CvpsKfYcpeonDpUOQ+UOzyQYtZhQe/WA6K524eZpmxk=";
             aarch64-darwin = "sha256-BbJ1hqXX2EEFaQ7MzH7bv0i8PW1Xd0XLYfFjupkK308=";
           };
           terraformPlatform = {
             x86_64-linux = "linux_amd64";
+            aarch64-linux = "linux_arm64";
             aarch64-darwin = "darwin_arm64";
           };
 
