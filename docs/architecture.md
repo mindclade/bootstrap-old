@@ -119,7 +119,7 @@ implementation paths directly.
 - The monorepo signer provider accepts only the exact `refs/heads/main` ref with the protected
   `release` subject executing the released `reusable-binauthz-sign.yml@v5.0.0`.
 - ARC canary, builder, qualification-reader, qualifier, signer, and promoter each use an exact
-  capability provider restricted to protected-main push, exact caller, exact v4 reusable
+  capability provider restricted to protected-main push, exact caller, exact v5 reusable
   workflow, immutable repository IDs, and a provider-specific audience.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.

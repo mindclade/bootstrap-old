@@ -1,4 +1,4 @@
-# bootstrap production blueprint
+# Mindclade · `bootstrap` production blueprint
 
 **Repository class:** `enterprise-control`  
 **Visibility:** `private`  
