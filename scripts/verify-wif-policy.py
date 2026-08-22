@@ -180,6 +180,26 @@ for token, label in (
         "environment:production",
         "protected production qualification subject",
     ),
+    (
+        'resource "google_iam_workload_identity_pool_provider" "github_bazel_cache"',
+        "dedicated Bazel cache provider",
+    ),
+    (
+        'workload_identity_pool_provider_id = "gh-bazel-cache"',
+        "dedicated Bazel cache provider ID",
+    ),
+    (
+        "assertion.workflow_sha == assertion.sha",
+        "Bazel cache workflow commit binding",
+    ),
+    (
+        "refs/heads/gh-readonly-queue/main/",
+        "protected merge-queue Bazel cache route",
+    ),
+    (
+        '"attribute.cache_access"',
+        "Bazel cache read/write attribute separation",
+    ),
 ):
     require(token, wif, label)
 outputs = (root / "outputs.tf").read_text()
@@ -192,6 +212,7 @@ for name in (
     "artifact_release_identities",
     "dr_evidence_identity",
     "production_qualification_identity",
+    "bazel_cache_identity",
 ):
     require(f'output "{name}"', outputs, f"root signer contract output {name}")
     require(
@@ -207,6 +228,23 @@ require(
     output_schema,
     "immutable signer principal contract pattern",
 )
+bazel_provider = wif.split(
+    "  github_bazel_cache_repository         = local.github_signer_repository", 1
+)[-1].split(
+    'resource "google_iam_workload_identity_pool_provider" "github_dr_evidence"', 1
+)[0]
+for forbidden_event in ("pull_request_target", "workflow_dispatch", "repository_dispatch"):
+    if forbidden_event in bazel_provider:
+        errors.append(f"Bazel cache provider admits forbidden event: {forbidden_event}")
+for route in (
+    "pull-request-read",
+    "trusted-main-write",
+    "merge-group-write",
+    "nightly-write",
+):
+    require(route, bazel_provider, f"Bazel cache route {route}")
+if "principalSet://" in module_outputs:
+    errors.append("Bazel cache contract exports a broad principal set")
 if "@refs/heads/main" not in wif:
     errors.append(
         "apply workflow identity catalog is not restricted to the protected main ref"

@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.4.0.schema.json",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.5.0.schema.json",
   "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.4.0"
+      "const": "1.5.0"
     },
     "organization_id": {
       "type": "string",
@@ -72,7 +72,8 @@
         "artifact_signer",
         "artifact_release_identities",
         "dr_evidence_identity",
-        "production_qualification_identity"
+        "production_qualification_identity",
+        "bazel_cache_identity"
       ],
       "properties": {
         "organization": {
@@ -224,6 +225,9 @@
               "const": "mindclade/gitops/.github/workflows/production-qualification-evidence.yml@refs/heads/main"
             }
           }
+        },
+        "bazel_cache_identity": {
+          "$ref": "#/$defs/bazel_cache_identity"
         }
       }
     },
@@ -368,6 +372,137 @@
     "production_qualification_principal": {
       "type": "string",
       "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/production-qualification:repo:mindclade@[0-9]+/gitops@[0-9]+:environment:production$"
+    },
+    "bazel_cache_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/bazel-cache:(pull-request-read|trusted-main-write|merge-group-write|nightly-write)$"
+    },
+    "bazel_cache_route": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "access",
+        "event_name",
+        "principal",
+        "ref_policy",
+        "workflow_path"
+      ],
+      "properties": {
+        "access": {
+          "enum": ["read", "write"]
+        },
+        "event_name": {
+          "enum": ["pull_request", "push", "merge_group", "schedule"]
+        },
+        "principal": {
+          "$ref": "#/$defs/bazel_cache_principal"
+        },
+        "ref_policy": {
+          "enum": ["pull-request-merge", "protected-main", "protected-merge-queue"]
+        },
+        "workflow_path": {
+          "enum": [
+            "mindclade/mindclade-internal-monorepo/.github/workflows/presubmit.yml",
+            "mindclade/mindclade-internal-monorepo/.github/workflows/nightly.yml"
+          ]
+        }
+      }
+    },
+    "bazel_cache_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workload_identity_provider",
+        "repository",
+        "repository_owner_id",
+        "repository_id",
+        "routes"
+      ],
+      "properties": {
+        "workload_identity_provider": {
+          "type": "string",
+          "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/github/providers/gh-bazel-cache$"
+        },
+        "repository": {
+          "const": "mindclade/mindclade-internal-monorepo"
+        },
+        "repository_owner_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "repository_id": {
+          "type": "string",
+          "pattern": "^[0-9]+$"
+        },
+        "routes": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "pull-request-read",
+            "trusted-main-write",
+            "merge-group-write",
+            "nightly-write"
+          ],
+          "properties": {
+            "pull-request-read": {
+              "allOf": [
+                {"$ref": "#/$defs/bazel_cache_route"},
+                {
+                  "properties": {
+                    "access": {"const": "read"},
+                    "event_name": {"const": "pull_request"},
+                    "principal": {"pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/bazel-cache:pull-request-read$"},
+                    "ref_policy": {"const": "pull-request-merge"},
+                    "workflow_path": {"const": "mindclade/mindclade-internal-monorepo/.github/workflows/presubmit.yml"}
+                  }
+                }
+              ]
+            },
+            "trusted-main-write": {
+              "allOf": [
+                {"$ref": "#/$defs/bazel_cache_route"},
+                {
+                  "properties": {
+                    "access": {"const": "write"},
+                    "event_name": {"const": "push"},
+                    "principal": {"pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/bazel-cache:trusted-main-write$"},
+                    "ref_policy": {"const": "protected-main"},
+                    "workflow_path": {"const": "mindclade/mindclade-internal-monorepo/.github/workflows/presubmit.yml"}
+                  }
+                }
+              ]
+            },
+            "merge-group-write": {
+              "allOf": [
+                {"$ref": "#/$defs/bazel_cache_route"},
+                {
+                  "properties": {
+                    "access": {"const": "write"},
+                    "event_name": {"const": "merge_group"},
+                    "principal": {"pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/bazel-cache:merge-group-write$"},
+                    "ref_policy": {"const": "protected-merge-queue"},
+                    "workflow_path": {"const": "mindclade/mindclade-internal-monorepo/.github/workflows/presubmit.yml"}
+                  }
+                }
+              ]
+            },
+            "nightly-write": {
+              "allOf": [
+                {"$ref": "#/$defs/bazel_cache_route"},
+                {
+                  "properties": {
+                    "access": {"const": "write"},
+                    "event_name": {"const": "schedule"},
+                    "principal": {"pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/bazel-cache:nightly-write$"},
+                    "ref_policy": {"const": "protected-main"},
+                    "workflow_path": {"const": "mindclade/mindclade-internal-monorepo/.github/workflows/nightly.yml"}
+                  }
+                }
+              ]
+            }
+          }
+        }
+      }
     },
     "artifact_release_identity": {
       "type": "object",

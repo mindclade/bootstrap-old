@@ -240,6 +240,17 @@ if REPOSITORY == "bootstrap":
     ):
         if token not in wif:
             error(f"production qualification WIF contract is missing: {token}")
+    for token in (
+        'resource "google_iam_workload_identity_pool_provider" "github_bazel_cache"',
+        'workload_identity_pool_provider_id = "gh-bazel-cache"',
+        "pull-request-read",
+        "trusted-main-write",
+        "merge-group-write",
+        "nightly-write",
+        "assertion.workflow_sha == assertion.sha",
+    ):
+        if token not in wif:
+            error(f"Bazel cache WIF contract is missing: {token}")
 elif REPOSITORY == "github-config":
     text = (ROOT / "catalog/repositories.yaml").read_text("utf-8", errors="ignore")
     for repo in (

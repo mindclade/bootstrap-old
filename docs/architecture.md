@@ -121,6 +121,11 @@ implementation paths directly.
 - ARC canary, builder, qualification-reader, qualifier, signer, and promoter each use an exact
   capability provider restricted to protected-main push, exact caller, exact v5 reusable
   workflow, immutable repository IDs, and a provider-specific audience.
+- Bazel caching uses a separate `gh-bazel-cache` provider. Pull-request runs can exchange only
+  the `pull-request-read` route; protected-main pushes, protected merge-queue refs, and scheduled
+  nightly runs receive three distinct write routes. Each route binds the exact repository IDs,
+  event ref, workflow path at that ref, workflow commit SHA, and provider audience. Ring 0 grants
+  no cache data access and creates no cache service account.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing

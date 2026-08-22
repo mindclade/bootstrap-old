@@ -29,6 +29,13 @@ scratch/staging principals for the four repositories that own recovery drills. I
 manual dispatch from each repository's protected `main` caller and the immutable v5 shared evidence
 workflow. The normal-plane writer service account and evidence bucket remain outside Ring 0.
 
+Contract `1.5.0` adds `bazel_cache_identity`: one provider dedicated to the internal monorepo's
+Bazel cache. Pull requests receive a read-only route; protected-main pushes, merge-queue runs, and
+scheduled nightly runs receive three distinct write routes. Every route binds the immutable owner
+and repository IDs, exact event ref, exact workflow path at that ref, workflow commit SHA, and a
+provider-specific audience. Reader/writer service accounts, bucket IAM, CMEK access, and the cache
+bucket remain normal-plane resources owned by `infrastructure-live`.
+
 Retrieve and validate the value after an approved apply:
 
 ```sh
