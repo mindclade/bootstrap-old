@@ -1,6 +1,8 @@
-.PHONY: validate validate-drill-matrix validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-drill-matrix validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
-validate: validate-drill-matrix validate-production-contract validate-repository-home
+validate: validate-core validate-repository-home
+
+validate-core: validate-drill-matrix validate-production-contract
 	bash scripts/validate.sh
 
 validate-drill-matrix:
