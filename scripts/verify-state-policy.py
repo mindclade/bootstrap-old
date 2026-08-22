@@ -220,6 +220,11 @@ require(
     seed,
     "seed Org Policy API quota service",
 )
+require(
+    '"cloudidentity.googleapis.com"',
+    cicd,
+    "CI/CD Cloud Identity API quota service",
+)
 
 narrow_kms_dependency = (
     'project  = google_project_service.seed["cloudkms.googleapis.com"].project'

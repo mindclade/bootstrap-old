@@ -12,6 +12,8 @@ not reconstructed or relabeled here.
 
 - Added the exact estate-wide `LEGAL.md` reliance policy and made it part of
   the repository contract.
+- Added CI/CD-project Cloud Identity API enablement as the explicit quota-consumer
+  prerequisite for the reviewed, named-administrator IdP export.
 
 ### Changed
 

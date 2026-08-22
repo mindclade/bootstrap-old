@@ -126,9 +126,10 @@ implementation paths directly.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
   Account Viewer on the configured billing account. They can refresh folders, projects, and
   billing-backed resources but cannot create/move resources, link projects, or change billing.
-- Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until a
-  separately approved Workspace/Cloud Identity authorization exists, the IdP export follows the
-  named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
+- The CI/CD project enables the Cloud Identity API as the IdP export's explicit quota consumer,
+  but Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until
+  a separately approved Workspace/Cloud Identity authorization exists, the IdP export follows
+  the named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
 - The break-glass account has no standing organization role. Temporary grants are conditional,
   time-bound, alerted, explicitly revoked, and reviewed.
 - Terraform creates Secret Manager containers but never secret payload versions.

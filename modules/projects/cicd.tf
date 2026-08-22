@@ -16,6 +16,10 @@ resource "google_project" "cicd" {
 
 resource "google_project_service" "cicd" {
   for_each = toset([
+    # The CI/CD project is the explicit quota consumer for the reviewed, named-admin
+    # Cloud Identity export. API enablement does not grant directory authorization;
+    # Google Workspace/Cloud Identity remains the authorization control plane.
+    "cloudidentity.googleapis.com",
     "cloudresourcemanager.googleapis.com",
     "iam.googleapis.com",
     "iamcredentials.googleapis.com",
