@@ -7,6 +7,7 @@ name: plan
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, closed]
   merge_group:
   workflow_dispatch:
 
@@ -42,8 +43,50 @@ env:
   TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT || 'security@mindclade.com' }}
 
 jobs:
+  detect:
+    name: detect connected-plan scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      should-run: ${{ steps.classify.outputs.should-run }}
+    steps:
+      - name: Check out credential-free source for change detection
+        if: github.event_name != 'pull_request' || github.event.action != 'closed'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - id: classify
+        name: Classify connected-plan scope
+        env:
+          EVENT_ACTION: ${{ github.event.action || '' }}
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha || '' }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || '' }}
+        run: |
+          set -euo pipefail
+          if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" = closed ]; then
+            should_run=false
+          else
+            should_run="$(python3 scripts/classify-plan-change.py \
+              --event-name "$EVENT_NAME" \
+              --event-action "$EVENT_ACTION" \
+              --base "$BASE_SHA" \
+              --head "$HEAD_SHA")"
+          fi
+          case "$should_run" in
+            true|false) ;;
+            *) echo "::error::change classifier returned an invalid decision"; exit 1 ;;
+          esac
+          echo "should-run=$should_run" >> "$GITHUB_OUTPUT"
+
   speculative:
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    needs: detect
+    if: >-
+      needs.detect.outputs.should-run == 'true' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
     environment: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -78,3 +121,39 @@ jobs:
         run: terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
       - name: Speculative plan
         run: terraform plan -input=false -lock-timeout=20m -no-color
+
+  verdict:
+    name: plan / verdict
+    if: always()
+    needs: [detect, speculative]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Resolve stable plan verdict
+        env:
+          DETECT_RESULT: ${{ needs.detect.result }}
+          PLAN_RESULT: ${{ needs.speculative.result }}
+          SHOULD_RUN: ${{ needs.detect.outputs.should-run }}
+        run: |
+          set -euo pipefail
+          if [ "$DETECT_RESULT" != success ]; then
+            echo "::error::connected-plan scope detection did not succeed"
+            exit 1
+          fi
+          if [ "$SHOULD_RUN" = false ]; then
+            echo "No Terraform, state, trust, or connected-plan control path changed."
+            exit 0
+          fi
+          if [ "$SHOULD_RUN" != true ]; then
+            echo "::error::connected-plan scope decision is absent or malformed"
+            exit 1
+          fi
+          if [ "$PLAN_RESULT" = cancelled ]; then
+            echo "Connected speculative plan was cancelled."
+            exit 0
+          fi
+          if [ "$PLAN_RESULT" != success ]; then
+            echo "::error::connected speculative plan did not succeed: ${PLAN_RESULT}"
+            exit 1
+          fi
+          echo "Connected speculative plan succeeded."

@@ -1,12 +1,15 @@
-.PHONY: validate validate-core validate-drill-matrix validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-drill-matrix validate-plan-change validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
 validate: validate-core validate-repository-home
 
-validate-core: validate-drill-matrix validate-production-contract
+validate-core: validate-drill-matrix validate-plan-change validate-production-contract
 	bash scripts/validate.sh
 
 validate-drill-matrix:
 	python3 scripts/validate-drill-matrix.py
+
+validate-plan-change:
+	python3 -m unittest tests.test_plan_change
 
 validate-repository-home:
 	python3 scripts/validate-repository-home.py --root .
