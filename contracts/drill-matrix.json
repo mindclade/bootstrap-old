@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "reportSchema": "mindclade/.github/schemas/drill-report-v2.schema.json",
+  "evidenceWorkflow": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0",
+  "operatorPolicy": {
+    "requiredRoles": ["primary", "observer"],
+    "distinctIdentities": true,
+    "preventSelfReview": true,
+    "changeReferenceRequired": true
+  },
+  "drills": [
+    {"id": "bootstrap-clean-room", "environment": "scratch", "rpoSeconds": 86400, "rtoSeconds": 28800, "cadence": "annual", "nextExecution": "2026-10-13"},
+    {"id": "terraform-state-recovery", "environment": "scratch", "rpoSeconds": 86400, "rtoSeconds": 14400, "cadence": "semiannual", "nextExecution": "2026-09-22"},
+    {"id": "github-idp-outage", "environment": "scratch", "rpoSeconds": 3600, "rtoSeconds": 14400, "cadence": "semiannual", "nextExecution": "2026-10-06"},
+    {"id": "org-policy-rollback", "environment": "staging", "rpoSeconds": 0, "rtoSeconds": 7200, "cadence": "quarterly", "nextExecution": "2026-09-15"},
+    {"id": "vpc-sc-lockout", "environment": "staging", "rpoSeconds": 0, "rtoSeconds": 7200, "cadence": "quarterly", "nextExecution": "2026-09-29"},
+    {"id": "gke-reconstruction", "environment": "staging", "rpoSeconds": 3600, "rtoSeconds": 14400, "cadence": "semiannual", "nextExecution": "2026-11-03"},
+    {"id": "argocd-rebootstrap", "environment": "staging", "rpoSeconds": 0, "rtoSeconds": 7200, "cadence": "quarterly", "nextExecution": "2026-10-20"},
+    {"id": "cloud-sql-restore", "environment": "staging", "rpoSeconds": 3600, "rtoSeconds": 14400, "cadence": "quarterly", "nextExecution": "2026-11-10"},
+    {"id": "protected-bucket-restore", "environment": "staging", "rpoSeconds": 3600, "rtoSeconds": 14400, "cadence": "quarterly", "nextExecution": "2026-11-17"},
+    {"id": "compromised-artifact-revocation", "environment": "staging", "rpoSeconds": 0, "rtoSeconds": 3600, "cadence": "quarterly", "nextExecution": "2026-09-08"}
+  ]
+}

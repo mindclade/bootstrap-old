@@ -28,6 +28,8 @@
 | Visibility | `private` |
 | Change model | `pull-request` |
 | Authority | `ring0-state`<br>`automation-federation`<br>`seed-projects`<br>`break-glass-recovery` |
+| Primary readers | Platform and security engineers |
+| First success | [Validate Ring 0 source](#quick-start) |
 | Start here | [`docs/README.md`](docs/README.md) |
 
 ## Mission
@@ -53,16 +55,22 @@ and audited break-glass access before any normal-plane infrastructure exists.
 
 ## Quick start
 
-Run the credential-free source checks from the repository root:
+Prerequisite: Nix with flakes enabled. The source checks require no Google Cloud credentials and
+do not read or modify remote state.
 
 ```sh
 nix develop .#ci --command make validate
 nix flake check --no-update-lock-file
 ```
 
-Expected result: Terraform, WIF policy, local-state, repository-contract, formatting, and
-license checks exit successfully. Do not run an apply, state migration, or break-glass action
-from an ordinary development session; use the reviewed procedures linked below.
+**Success means:** Terraform, WIF policy, local-state, repository-contract, formatting, and
+license checks all pass.
+
+**If it fails:** fix the first named check. Never bypass a local-state or WIF-policy failure;
+use the [documentation home](docs/README.md) to locate the owning recovery or trust procedure.
+
+**Safety boundary:** do not run an apply, state migration, or break-glass action from an ordinary
+development session. Use the reviewed procedures linked below.
 
 ## Estate position
 
@@ -114,6 +122,9 @@ state and trust rollback instructions with every material change.
 - [Break glass](docs/break-glass.md)
 - [State recovery](docs/state-recovery.md)
 - [Contributing](CONTRIBUTING.md)
+- Policies and terms: [governance](GOVERNANCE.md) · [conduct](CODE_OF_CONDUCT.md) ·
+  [support](SUPPORT.md) · [legal](LEGAL.md) · [license](LICENSE) · [notice](NOTICE) ·
+  [changes](CHANGELOG.md)
 
 ## Security
 

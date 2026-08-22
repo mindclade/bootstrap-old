@@ -10,6 +10,10 @@ Workload Identity Federation authenticates `github-config` as that service accou
 Cloud Identity Groups API authorizes directory reads through Google Workspace/Cloud Identity
 administration. These are separate control planes.
 
+The bootstrap projects module enables `cloudidentity.googleapis.com` on the CI/CD project so
+`mc-b-cicd-fb7649` can be the explicit API quota consumer. Service enablement grants no directory
+read authority and must not be represented as a substitute for Workspace authorization.
+
 ## Current fail-closed path
 
 Until a directory authorization path is separately approved, a designated Cloud Identity or
@@ -47,6 +51,7 @@ exist in the current workflow.
 ## Verification
 
 - Bootstrap contains no Cloud Identity role in an organization IAM binding.
+- The CI/CD project enables the Cloud Identity API only as the declared quota consumer.
 - `github-config-plan` retains only its documented Google Cloud read permissions.
 - Manual exports are reviewed and attributable to a named administrator.
 - Automated export remains disabled or fail-closed until both required directory APIs pass

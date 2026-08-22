@@ -119,16 +119,17 @@ implementation paths directly.
 - The monorepo signer provider accepts only the exact `refs/heads/main` ref with the protected
   `release` subject executing the released `reusable-binauthz-sign.yml@v5.0.0`.
 - ARC canary, builder, qualification-reader, qualifier, signer, and promoter each use an exact
-  capability provider restricted to protected-main push, exact caller, exact v4 reusable
+  capability provider restricted to protected-main push, exact caller, exact v5 reusable
   workflow, immutable repository IDs, and a provider-specific audience.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
   Account Viewer on the configured billing account. They can refresh folders, projects, and
   billing-backed resources but cannot create/move resources, link projects, or change billing.
-- Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until a
-  separately approved Workspace/Cloud Identity authorization exists, the IdP export follows the
-  named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
+- The CI/CD project enables the Cloud Identity API as the IdP export's explicit quota consumer,
+  but Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until
+  a separately approved Workspace/Cloud Identity authorization exists, the IdP export follows
+  the named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
 - The break-glass account has no standing organization role. Temporary grants are conditional,
   time-bound, alerted, explicitly revoked, and reviewed.
 - Terraform creates Secret Manager containers but never secret payload versions.

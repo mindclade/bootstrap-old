@@ -5,6 +5,9 @@ validate: validate-core validate-repository-home
 validate-core: validate-production-contract
 	bash scripts/validate.sh
 
+validate-drill-matrix:
+	python3 scripts/validate-drill-matrix.py
+
 validate-repository-home:
 	python3 scripts/validate-repository-home.py --root .
 
