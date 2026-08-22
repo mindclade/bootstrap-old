@@ -17,6 +17,8 @@ not reconstructed or relabeled here.
 
 ### Changed
 
+- Synchronized policy bundle `2026.08.21.3` and pinned repository-home validation to canonical
+  commit `8467615f12868d4b78718b8ddf7f05797c44a507`.
 - Updated the proprietary license with the protected-disclosure notice and
   recorded the Contributor Covenant 2.1 attribution and modifications.
 - Moved the reusable SPDX source-header template under `.github/` so `LICENSE`
