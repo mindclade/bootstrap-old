@@ -194,6 +194,13 @@ or an organization administrator role.
 Run `plan.yml`, then a no-op protected `apply.yml` execution. Normal changes are Git-mediated
 from this point onward.
 
+For pull requests, `plan.yml` enters the protected `plan` environment only when Terraform,
+`.terraform.lock.hcl`, `.terraform-version`, or the plan classifier/workflow changes. Manual and
+merge-queue runs always plan. The always-present `plan / verdict` check succeeds without cloud
+credentials for unaffected changes and fails if scope detection is unavailable or a required
+connected plan does not succeed. A `pull_request: closed` run shares the pull request's
+concurrency key, cancels any stale approval wait, and performs no cloud authentication.
+
 The `plan` environment is part of the Google Cloud identity, not presentation-only metadata.
 Record successful plan token exchange plus failed exchange from an arbitrary workflow and
 branch. The scheduled recovery drill authenticates through its separate exact-main workflow
