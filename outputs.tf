@@ -85,6 +85,11 @@ output "production_qualification_identity" {
   value       = module.identity.production_qualification_identity
 }
 
+output "bazel_cache_identity" {
+  description = "Dedicated Bazel cache WIF provider and exact read/write route principals for infrastructure-live."
+  value       = module.identity.bazel_cache_identity
+}
+
 output "buildkite_wif_pool_name" {
   value = module.identity.buildkite_wif_pool_name
 }
@@ -137,7 +142,7 @@ output "residency_profile" {
 output "platform_contract" {
   description = "Versioned Ring-0 identifiers consumed by other control repositories."
   value = {
-    contract_version      = "1.4.0"
+    contract_version      = "1.5.0"
     organization_id       = var.org_id
     billing_account       = var.billing_account
     bootstrap_folder_id   = module.projects.bootstrap_folder_id
@@ -161,6 +166,7 @@ output "platform_contract" {
       artifact_release_identities       = module.identity.artifact_release_identities
       dr_evidence_identity              = module.identity.dr_evidence_identity
       production_qualification_identity = module.identity.production_qualification_identity
+      bazel_cache_identity              = module.identity.bazel_cache_identity
     }
     buildkite = {
       enabled                    = var.enable_buildkite_wif

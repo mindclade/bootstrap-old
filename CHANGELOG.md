@@ -10,6 +10,9 @@ not reconstructed or relabeled here.
 
 ### Added
 
+- Added Ring-0 platform contract `1.5.0` with a dedicated Bazel-cache WIF provider,
+  pull-request read isolation, and distinct protected main, merge-group, and nightly write routes;
+  cache service accounts, storage, and activation remain normal-plane responsibilities.
 - Added an additive `us-east4` state-replica migration with distinct buckets, CMEK,
   transfer jobs, read-only recovery access, and a fail-closed operator runbook.
 - Added the exact estate-wide `LEGAL.md` reliance policy and made it part of

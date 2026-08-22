@@ -174,6 +174,9 @@ Configure in `github-config`/GitHub Enterprise:
 - `WIF_PROVIDER_PLAN` / `WIF_PROVIDER_APPLY`;
 - `artifact_release_identities` as the six capability-specific ARC provider/principal
   contracts; `infrastructure-live` binds each only to its matching normal-plane service account;
+- `bazel_cache_identity` as the dedicated read/write route contract;
+  `infrastructure-live` creates separate cache reader and writer service accounts and binds each
+  only to the matching exact route principals;
 - `SA_BOOTSTRAP_PLAN`, `SA_BOOTSTRAP_DRIFT`, and `SA_BOOTSTRAP_APPLY`;
 - `TFSTATE_BUCKET`, `TFSTATE_REPLICA_BUCKET`, and required non-secret Terraform variables;
 - `GH_ORGANIZATION`, `GH_ORGANIZATION_ID`, and `GH_REPOSITORY_IDS_JSON`;
@@ -186,6 +189,14 @@ monorepo token from the exact `refs/heads/main` ref, protected `release` environ
 `reusable-binauthz-sign.yml@v5.0.0` can exchange through the signer provider. Also record
 negative tests showing a builder job, an unprotected ref, a different environment, and a
 different reusable workflow are rejected.
+
+Before publishing Bazel cache variables, verify that a pull-request token can impersonate only
+the reader, while protected-main push, protected merge-group, and scheduled `nightly.yml` tokens
+can impersonate only the writer. Record failed exchanges for `pull_request_target`, manual
+dispatch, tags, feature branches, a different workflow path, a different workflow SHA, a
+different repository ID, and a non-provider audience. The normal-plane cache remains inactive
+until its immutable module release, CMEK/service-agent grant, bucket policy, and client write
+semantics have separate connected qualification.
 
 Before the first federated speculative plan or scheduled drift run, the protected bootstrap
 apply must have granted `roles/browser` at the organization and `roles/billing.viewer` on the

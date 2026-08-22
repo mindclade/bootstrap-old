@@ -105,6 +105,104 @@ locals {
   github_production_qualification_audience   = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-production-qualification"
   github_production_qualification_subject    = "${local.github_immutable_subject_prefixes[local.github_production_qualification_repository]}:environment:production"
   github_production_qualification_workflow   = "${var.github_org}/gitops/.github/workflows/production-qualification-evidence.yml@refs/heads/main"
+
+  github_bazel_cache_repository         = local.github_signer_repository
+  github_bazel_cache_audience           = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-bazel-cache"
+  github_bazel_cache_presubmit_workflow = "${var.github_org}/${local.github_bazel_cache_repository}/.github/workflows/presubmit.yml"
+  github_bazel_cache_nightly_workflow   = "${var.github_org}/${local.github_bazel_cache_repository}/.github/workflows/nightly.yml"
+  github_bazel_cache_routes = {
+    pull-request-read = {
+      access        = "read"
+      event_name    = "pull_request"
+      ref_policy    = "pull-request-merge"
+      workflow_path = local.github_bazel_cache_presubmit_workflow
+      condition = join(" && ", [
+        "assertion.event_name == \"pull_request\"",
+        "assertion.sub == ${jsonencode("${local.github_immutable_subject_prefixes[local.github_bazel_cache_repository]}:pull_request")}",
+        "assertion.ref.startsWith(\"refs/pull/\")",
+        "assertion.ref.endsWith(\"/merge\")",
+        "assertion.workflow_ref == ${jsonencode("${local.github_bazel_cache_presubmit_workflow}@")} + assertion.ref",
+        "assertion.workflow_sha == assertion.sha",
+      ])
+    }
+    trusted-main-write = {
+      access        = "write"
+      event_name    = "push"
+      ref_policy    = "protected-main"
+      workflow_path = local.github_bazel_cache_presubmit_workflow
+      condition = join(" && ", [
+        "assertion.event_name == \"push\"",
+        "assertion.sub == ${jsonencode("${local.github_immutable_subject_prefixes[local.github_bazel_cache_repository]}:ref:refs/heads/main")}",
+        "assertion.ref == \"refs/heads/main\"",
+        "assertion.workflow_ref == ${jsonencode("${local.github_bazel_cache_presubmit_workflow}@refs/heads/main")}",
+        "assertion.workflow_sha == assertion.sha",
+      ])
+    }
+    merge-group-write = {
+      access        = "write"
+      event_name    = "merge_group"
+      ref_policy    = "protected-merge-queue"
+      workflow_path = local.github_bazel_cache_presubmit_workflow
+      condition = join(" && ", [
+        "assertion.event_name == \"merge_group\"",
+        "assertion.ref.startsWith(\"refs/heads/gh-readonly-queue/main/\")",
+        "assertion.sub == ${jsonencode("${local.github_immutable_subject_prefixes[local.github_bazel_cache_repository]}:ref:")} + assertion.ref",
+        "assertion.workflow_ref == ${jsonencode("${local.github_bazel_cache_presubmit_workflow}@")} + assertion.ref",
+        "assertion.workflow_sha == assertion.sha",
+      ])
+    }
+    nightly-write = {
+      access        = "write"
+      event_name    = "schedule"
+      ref_policy    = "protected-main"
+      workflow_path = local.github_bazel_cache_nightly_workflow
+      condition = join(" && ", [
+        "assertion.event_name == \"schedule\"",
+        "assertion.sub == ${jsonencode("${local.github_immutable_subject_prefixes[local.github_bazel_cache_repository]}:ref:refs/heads/main")}",
+        "assertion.ref == \"refs/heads/main\"",
+        "assertion.workflow_ref == ${jsonencode("${local.github_bazel_cache_nightly_workflow}@refs/heads/main")}",
+        "assertion.workflow_sha == assertion.sha",
+      ])
+    }
+  }
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_bazel_cache" {
+  # checkov:skip=CKV_GCP_125:Immutable owner/repository IDs, exact event/ref/workflow/SHA routes, and a provider-specific audience are enforced below.
+  project = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-bazel-cache"
+  display_name                       = "Bazel remote cache"
+
+  attribute_mapping = {
+    "google.subject"                = "\"bazel-cache:\" + (assertion.event_name == \"pull_request\" ? \"pull-request-read\" : assertion.event_name == \"push\" ? \"trusted-main-write\" : assertion.event_name == \"merge_group\" ? \"merge-group-write\" : \"nightly-write\")"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.cache_access"        = "assertion.event_name == \"pull_request\" ? \"read\" : \"write\""
+    "attribute.cache_route"         = "assertion.event_name == \"pull_request\" ? \"pull-request-read\" : assertion.event_name == \"push\" ? \"trusted-main-write\" : assertion.event_name == \"merge_group\" ? \"merge-group-write\" : \"nightly-write\""
+    "attribute.event_name"          = "assertion.event_name"
+    "attribute.ref"                 = "assertion.ref"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.sha"                 = "assertion.sha"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+    "attribute.workflow_sha"        = "assertion.workflow_sha"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.repository_id == ${jsonencode(var.github_repository_ids[local.github_bazel_cache_repository])}",
+    "assertion.repository == ${jsonencode("${var.github_org}/${local.github_bazel_cache_repository}")}",
+    "assertion.repository_visibility in [\"internal\", \"private\"]",
+    "assertion.aud == ${jsonencode(local.github_bazel_cache_audience)}",
+    "(${join(" || ", [for route in values(local.github_bazel_cache_routes) : "(${route.condition})"])})",
+  ])
+
+  oidc {
+    issuer_uri        = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [local.github_bazel_cache_audience]
+  }
 }
 
 resource "google_iam_workload_identity_pool_provider" "github_dr_evidence" {

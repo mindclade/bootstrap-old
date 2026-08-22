@@ -90,6 +90,25 @@ output "production_qualification_identity" {
   }
 }
 
+output "bazel_cache_identity" {
+  description = "Dedicated GitHub WIF provider and exact read/write principals for Bazel remote caching."
+  value = {
+    workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github_bazel_cache.workload_identity_pool_provider_id}"
+    repository                 = "${var.github_org}/${local.github_bazel_cache_repository}"
+    repository_owner_id        = var.github_org_id
+    repository_id              = var.github_repository_ids[local.github_bazel_cache_repository]
+    routes = {
+      for route, contract in local.github_bazel_cache_routes : route => {
+        access        = contract.access
+        event_name    = contract.event_name
+        principal     = "principal://iam.googleapis.com/${local.github_pool_name}/subject/bazel-cache:${route}"
+        ref_policy    = contract.ref_policy
+        workflow_path = contract.workflow_path
+      }
+    }
+  }
+}
+
 output "buildkite_wif_pool_name" {
   value = local.buildkite_pool_name
 }
