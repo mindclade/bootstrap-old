@@ -52,9 +52,20 @@ class PlanChangeTests(unittest.TestCase):
             'git show "${BASE_SHA}:scripts/classify-plan-change.py"', workflow
         )
         self.assertIn(
+            "grep -Eq '^(\\.github/workflows/plan\\.yml|"
+            "scripts/classify-plan-change\\.py)$'",
+            workflow,
+        )
+        self.assertIn(
             "A pull request may not execute its own modified gate to exempt itself",
             workflow,
         )
+
+    def test_cancelled_connected_plan_cannot_pass_the_verdict(self) -> None:
+        workflow = (ROOT / ".github/workflows/plan.yml").read_text(encoding="utf-8")
+        self.assertNotIn('[ "$PLAN_RESULT" = cancelled ]', workflow)
+        self.assertIn('[ "$PLAN_RESULT" != success ]', workflow)
+        self.assertIn("connected speculative plan did not succeed", workflow)
 
 
 if __name__ == "__main__":

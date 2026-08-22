@@ -20,7 +20,9 @@ not reconstructed or relabeled here.
 - Made connected pull-request planning path-aware and added the stable `plan / verdict` check.
   Documentation-only changes skip protected credentials, while Terraform, lockfile, toolchain,
   and plan-control changes still fail closed to the connected plan. Pull-request close events
-  cancel stale waiting runs without entering a protected environment.
+  cancel stale waiting runs without entering a protected environment. Pull requests execute
+  the immutable base-branch classifier, classifier and workflow changes force connected
+  qualification, and a cancelled connected plan remains a failing verdict.
 - Synchronized policy bundle `2026.08.21.3` and pinned repository-home validation to canonical
   commit `8467615f12868d4b78718b8ddf7f05797c44a507`.
 - Updated the proprietary license with the protected-disclosure notice and
