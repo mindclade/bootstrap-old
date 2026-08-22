@@ -8,6 +8,11 @@ variable "prefix" { type = string }
 variable "suffix" { type = string }
 variable "primary_kms_key_id" { type = string }
 variable "replica_kms_key_id" { type = string }
+variable "legacy_replica_kms_key_id" {
+  type     = string
+  nullable = true
+}
+variable "preserve_legacy_eu_state_replicas" { type = bool }
 variable "state_bucket_location" { type = string }
 variable "state_replica_location" { type = string }
 variable "state_soft_delete_days" { type = number }

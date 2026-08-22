@@ -100,15 +100,47 @@ resource "google_kms_crypto_key" "automation_secrets_regional" {
   }
 }
 
-resource "google_kms_key_ring" "state_replica" {
+# Preserve the deployed cross-continent recovery key while the us-only-v1 replacement is
+# populated and qualified. The count stays enabled for the deployed estate; greenfield first
+# apply explicitly disables it.
+resource "google_kms_key_ring" "state_replica_legacy" {
+  count = var.preserve_legacy_eu_state_replicas ? 1 : 0
+
+  project  = google_project_service.seed["cloudkms.googleapis.com"].project
+  name     = "${var.prefix}-bootstrap-state-replica"
+  location = "europe-west4"
+}
+
+resource "google_kms_crypto_key" "state_replica_legacy" {
+  count = var.preserve_legacy_eu_state_replicas ? 1 : 0
+
+  name            = "tfstate"
+  key_ring        = google_kms_key_ring.state_replica_legacy[0].id
+  purpose         = "ENCRYPT_DECRYPT"
+  rotation_period = "7776000s"
+
+  version_template {
+    algorithm        = "GOOGLE_SYMMETRIC_ENCRYPTION"
+    protection_level = var.kms_protection_level
+  }
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+# The authoritative us-only-v1 recovery key is additive: it never changes or replaces the
+# deployed legacy key. Cloud KMS key-ring names are location-scoped, so the same stable name is
+# safe in us-east4.
+resource "google_kms_key_ring" "state_replica_us" {
   project  = google_project_service.seed["cloudkms.googleapis.com"].project
   name     = "${var.prefix}-bootstrap-state-replica"
   location = var.state_replica_kms_location
 }
 
-resource "google_kms_crypto_key" "state_replica" {
+resource "google_kms_crypto_key" "state_replica_us" {
   name            = "tfstate"
-  key_ring        = google_kms_key_ring.state_replica.id
+  key_ring        = google_kms_key_ring.state_replica_us.id
   purpose         = "ENCRYPT_DECRYPT"
   rotation_period = "7776000s"
 
@@ -135,10 +167,33 @@ resource "google_kms_crypto_key_iam_member" "state_primary_gcs" {
   member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
 }
 
-resource "google_kms_crypto_key_iam_member" "state_replica_gcs" {
-  crypto_key_id = google_kms_crypto_key.state_replica.id
+resource "google_kms_crypto_key_iam_member" "state_replica_legacy_gcs" {
+  count = var.preserve_legacy_eu_state_replicas ? 1 : 0
+
+  crypto_key_id = google_kms_crypto_key.state_replica_legacy[0].id
   role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
   member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+}
+
+resource "google_kms_crypto_key_iam_member" "state_replica_us_gcs" {
+  crypto_key_id = google_kms_crypto_key.state_replica_us.id
+  role          = "roles/cloudkms.cryptoKeyEncrypterDecrypter"
+  member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"
+}
+
+moved {
+  from = google_kms_key_ring.state_replica
+  to   = google_kms_key_ring.state_replica_legacy[0]
+}
+
+moved {
+  from = google_kms_crypto_key.state_replica
+  to   = google_kms_crypto_key.state_replica_legacy[0]
+}
+
+moved {
+  from = google_kms_crypto_key_iam_member.state_replica_gcs
+  to   = google_kms_crypto_key_iam_member.state_replica_legacy_gcs[0]
 }
 
 # Data Access audit logs for the Ring-0 state and token-exchange surfaces. Normal

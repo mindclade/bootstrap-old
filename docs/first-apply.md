@@ -56,6 +56,8 @@ initializes Terraform's local backend.
 ```sh
 cp "${FIRST_APPLY_DIR}/terraform.tfvars.example" "${FIRST_APPLY_DIR}/terraform.tfvars"
 # Replace every example value without printing secrets or identifiers into shell history.
+# A greenfield estate has no legacy Europe recovery resources to preserve:
+# preserve_legacy_eu_state_replicas = false
 
 terraform -chdir="${FIRST_APPLY_DIR}" init -input=false -lockfile=readonly
 terraform -chdir="${FIRST_APPLY_DIR}" fmt -check -recursive -diff

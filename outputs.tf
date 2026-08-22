@@ -28,8 +28,13 @@ output "state_buckets" {
 }
 
 output "state_replica_buckets" {
-  description = "State scope to independent replica bucket name."
+  description = "State scope to authoritative us-only-v1 replica bucket name."
   value       = module.state.state_replica_buckets
+}
+
+output "legacy_state_replica_buckets" {
+  description = "Preserved Europe replica buckets retained during additive migration."
+  value       = module.state.legacy_state_replica_buckets
 }
 
 output "service_accounts" {

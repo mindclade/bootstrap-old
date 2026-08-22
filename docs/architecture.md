@@ -143,7 +143,11 @@ write authority is an IAM-conditioned `roles/storage.objectAdmin` grant whose re
 acquire and release its native lock without allowing those identities to modify `.tfstate`.
 Their unconditional `roles/storage.objectViewer` grant supplies state reads and object listing,
 so the conditioned role does not need to authorize bucket-level list requests. An independent
-cross-location replica provides a separate recovery source and may lag by one transfer interval.
+U.S. cross-location replica provides the authoritative `us-only-v1` recovery source and may lag
+by one transfer interval. During the additive migration, the deployed Europe replicas remain
+separately managed and protected as legacy recovery copies. They are not part of the supported
+platform contract and cannot be removed until the U.S. copies pass the qualification and
+decommission gates in [State replica migration](state-replica-migration.md).
 
 Recovery proceeds from least invasive to most invasive:
 
@@ -176,5 +180,6 @@ Never apply against missing or partial state. See [State recovery](state-recover
 - [Documentation home](README.md)
 - [First apply](first-apply.md)
 - [State recovery](state-recovery.md)
+- [State replica migration](state-replica-migration.md)
 - [Break-glass](break-glass.md)
 - [Automation identity handoff](https://github.com/mindclade/infrastructure-live/blob/main/docs/automation-identity-handoff.md)

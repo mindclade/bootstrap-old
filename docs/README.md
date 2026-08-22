@@ -13,6 +13,7 @@
 | Understand Ring 0 | [Architecture](architecture.md) | Learn the ownership boundary, identity flow, and failure domains |
 | Create Ring 0 for the first time | [First apply](first-apply.md) | Build the seed resources and migrate local state safely |
 | Recover damaged state | [State recovery](state-recovery.md) | Restore a prior generation, replica, or reconstructed state |
+| Migrate state replicas into the U.S. recovery region | [Replica migration](state-replica-migration.md) | Add and qualify us-east4 recovery copies without replacing the deployed legacy estate |
 | Use emergency access | [Break-glass](break-glass.md) | Grant, use, revoke, and review time-bound recovery access |
 | Rebuild the platform from zero | [Cold-start recovery](cold-start.md) | Restore control repositories in dependency order |
 | Plan and evidence recovery drills | [DR drill program](drill-program.md) | Use defined objectives, protected two-operator dispatch, and immutable reports |
@@ -34,6 +35,8 @@
 
 - [Break-glass](break-glass.md) — audited emergency elevation.
 - [State recovery](state-recovery.md) — state restoration and reconstruction.
+- [State replica migration](state-replica-migration.md) — additive migration from the
+  preserved Europe recovery estate to authoritative `us-east4` replicas.
 - [Credential and trust rotation](credential-rotation.md) — rotate keyless trust after a
   repository identity change or incident.
 - [Ring-0 disaster recovery](disaster-recovery.md) — incident-level recovery entry point.
