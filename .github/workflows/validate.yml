@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Validate repository home
-        uses: mindclade/.github/actions/validate-repository-home@5e35193c85161555a6e76030fec639983bfdfe3c  # v5.0.0 source candidate
+        uses: mindclade/.github/actions/validate-repository-home@448aa32489b3cc374f0725e5cfe5ac6422d49fde  # v5.0.0 source candidate
         with:
           local-validator-path: scripts/validate-repository-home.py
       - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd  # v3
