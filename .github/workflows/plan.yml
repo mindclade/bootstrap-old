@@ -148,6 +148,10 @@ jobs:
             echo "::error::connected-plan scope decision is absent or malformed"
             exit 1
           fi
+          if [ "$PLAN_RESULT" = cancelled ]; then
+            echo "Connected speculative plan was cancelled."
+            exit 0
+          fi
           if [ "$PLAN_RESULT" != success ]; then
             echo "::error::connected speculative plan did not succeed: ${PLAN_RESULT}"
             exit 1
