@@ -68,6 +68,23 @@ jobs:
           set -euo pipefail
           if [ "$EVENT_NAME" = pull_request ] && [ "$EVENT_ACTION" = closed ]; then
             should_run=false
+          elif [ "$EVENT_NAME" = pull_request ]; then
+            changed_files="${RUNNER_TEMP}/bootstrap-plan-changed-files.txt"
+            git diff --name-only --no-renames "${BASE_SHA}...${HEAD_SHA}" > "$changed_files"
+            if grep -Eq '^(\.github/workflows/plan\.yml|scripts/classify-plan-change\.py)$' "$changed_files"; then
+              # A pull request may not execute its own modified gate to exempt itself. Any
+              # gate change requires the connected plan, and all other changes are classified
+              # by the immutable base-branch copy.
+              should_run=true
+            else
+              classifier="${RUNNER_TEMP}/classify-plan-change.py"
+              git show "${BASE_SHA}:scripts/classify-plan-change.py" > "$classifier"
+              should_run="$(python3 "$classifier" \
+                --event-name "$EVENT_NAME" \
+                --event-action "$EVENT_ACTION" \
+                --base "$BASE_SHA" \
+                --head "$HEAD_SHA")"
+            fi
           else
             should_run="$(python3 scripts/classify-plan-change.py \
               --event-name "$EVENT_NAME" \
@@ -147,10 +164,6 @@ jobs:
           if [ "$SHOULD_RUN" != true ]; then
             echo "::error::connected-plan scope decision is absent or malformed"
             exit 1
-          fi
-          if [ "$PLAN_RESULT" = cancelled ]; then
-            echo "Connected speculative plan was cancelled."
-            exit 0
           fi
           if [ "$PLAN_RESULT" != success ]; then
             echo "::error::connected speculative plan did not succeed: ${PLAN_RESULT}"
