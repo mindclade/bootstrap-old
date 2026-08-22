@@ -17,6 +17,12 @@ import subprocess
 import sys
 from pathlib import Path
 
+from production_contract_checks import (
+    validate_delivery_paths,
+    validate_makefile_contract,
+    validate_workflows,
+)
+
 ROOT = Path(__file__).resolve().parents[1]
 REPOSITORY = "bootstrap"
 CONTRACT = json.loads(
@@ -56,13 +62,6 @@ def delivery_paths() -> list[Path]:
 
 DELIVERY_PATHS = delivery_paths()
 DELIVERY_RELATIVE = {p.relative_to(ROOT).as_posix() for p in DELIVERY_PATHS}
-LEGACY_GITHUB_IDENTITIES = (
-    "Mind" + "clade/",
-    "github.com/" + "Mind" + "clade",
-    "/orgs/" + "Mind" + "clade",
-)
-
-
 def delivery_prefix_exists(relative: str) -> bool:
     prefix = relative.rstrip("/")
     return prefix in DELIVERY_RELATIVE or any(
@@ -92,67 +91,9 @@ for rel in CONTRACT["required_paths"]:
 for rel in CONTRACT["forbidden_paths"]:
     if delivery_prefix_exists(rel):
         error(f"forbidden delivery path present: {rel}")
-for p in DELIVERY_PATHS:
-    relative = p.relative_to(ROOT)
-    if any(
-        part in {".terraform", ".terragrunt-cache", "__MACOSX", "__pycache__"}
-        for part in relative.parts
-    ):
-        error(f"local/cache artifact is present in delivery: {relative}")
-    if (
-        p.name.startswith("._")
-        or ".tfstate" in p.name
-        or "tfplan" in p.name
-        or p.suffix == ".pyc"
-    ):
-        error(f"generated/sensitive artifact is present in delivery: {relative}")
-    if p.is_symlink():
-        error(f"symlink forbidden in delivery: {relative}")
-    if p.is_file() and p.stat().st_size <= 2_000_000:
-        text = p.read_text("utf-8", errors="ignore")
-        if any(legacy in text for legacy in LEGACY_GITHUB_IDENTITIES):
-            error(f"noncanonical GitHub organization identity in {relative}")
-
-# GitHub Actions must be immutable and least privilege.
-for p in (
-    (ROOT / ".github/workflows").glob("*.y*ml")
-    if (ROOT / ".github/workflows").exists()
-    else []
-):
-    text = p.read_text("utf-8", errors="ignore")
-    for use in re.findall(r"(?m)^\s*-?\s*uses:\s*([^#\s]+)", text):
-        if use.startswith("./"):
-            continue
-        if not (
-            re.search(r"@[0-9a-f]{40}$", use)
-            or re.search(r"@sha256:[0-9a-f]{64}$", use)
-            or re.fullmatch(
-                r"mindclade/\.github/\.github/workflows/[^@]+@v[0-9]+\.[0-9]+\.[0-9]+",
-                use,
-            )
-        ):
-            error(
-                f"workflow action is not immutable-pinned in {p.relative_to(ROOT)}: {use}"
-            )
-    if "permissions:" not in text:
-        error(f"workflow lacks explicit permissions: {p.relative_to(ROOT)}")
-
-# No obvious plaintext credentials. Values are intentionally conservative.
-secret_patterns = [
-    re.compile(r"-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----"),
-    re.compile(r"AIza[0-9A-Za-z_-]{35}"),
-    re.compile(r"gh[pousr]_[A-Za-z0-9]{30,}"),
-]
-for p in DELIVERY_PATHS:
-    if not p.is_file() or p.stat().st_size > 2_000_000:
-        continue
-    try:
-        text = p.read_text("utf-8", errors="ignore")
-    except OSError:
-        continue
-    for pattern in secret_patterns:
-        if pattern.search(text):
-            error(f"possible credential in {p.relative_to(ROOT)}")
+ERRORS.extend(validate_delivery_paths(DELIVERY_PATHS, ROOT))
+ERRORS.extend(validate_workflows(ROOT))
+ERRORS.extend(validate_makefile_contract(ROOT))
 
 # The versioned Ring-0 output is the supported downstream interface. Keep its descriptor,
 # schema, and Terraform declaration synchronized without requiring Terraform or cloud access.
