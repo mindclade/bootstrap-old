@@ -19,6 +19,8 @@ state_kms_location         = "us"
 automation_secret_location = "us-central1"
 state_replica_location     = "us-east4"
 state_replica_kms_location = "us-east4"
+# Greenfield first apply has no deployed Europe recovery estate to preserve.
+preserve_legacy_eu_state_replicas = false
 
 state_soft_delete_days   = 30
 noncurrent_version_days  = 90

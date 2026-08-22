@@ -12,16 +12,17 @@ module "naming" {
 module "projects" {
   source = "./modules/projects"
 
-  org_id                     = var.org_id
-  bootstrap_folder_id        = var.bootstrap_folder_id
-  billing_account            = var.billing_account
-  prefix                     = var.prefix
-  suffix                     = module.naming.suffix
-  state_kms_location         = var.state_kms_location
-  automation_secret_location = var.automation_secret_location
-  state_replica_kms_location = var.state_replica_kms_location
-  kms_protection_level       = var.kms_protection_level
-  labels                     = var.labels
+  org_id                            = var.org_id
+  bootstrap_folder_id               = var.bootstrap_folder_id
+  billing_account                   = var.billing_account
+  prefix                            = var.prefix
+  suffix                            = module.naming.suffix
+  state_kms_location                = var.state_kms_location
+  automation_secret_location        = var.automation_secret_location
+  state_replica_kms_location        = var.state_replica_kms_location
+  preserve_legacy_eu_state_replicas = var.preserve_legacy_eu_state_replicas
+  kms_protection_level              = var.kms_protection_level
+  labels                            = var.labels
 }
 
 module "identity" {
@@ -67,16 +68,18 @@ removed {
 module "state" {
   source = "./modules/state"
 
-  seed_project_id          = module.projects.seed_project_id
-  prefix                   = var.prefix
-  suffix                   = module.naming.suffix
-  primary_kms_key_id       = module.projects.state_primary_kms_key_id
-  replica_kms_key_id       = module.projects.state_replica_kms_key_id
-  state_bucket_location    = var.state_bucket_location
-  state_replica_location   = var.state_replica_location
-  state_soft_delete_days   = var.state_soft_delete_days
-  noncurrent_version_days  = var.noncurrent_version_days
-  noncurrent_version_count = var.noncurrent_version_count
-  service_account_emails   = module.identity.service_accounts
-  labels                   = var.labels
+  seed_project_id                   = module.projects.seed_project_id
+  prefix                            = var.prefix
+  suffix                            = module.naming.suffix
+  primary_kms_key_id                = module.projects.state_primary_kms_key_id
+  replica_kms_key_id                = module.projects.state_replica_kms_key_id
+  legacy_replica_kms_key_id         = module.projects.legacy_state_replica_kms_key_id
+  preserve_legacy_eu_state_replicas = var.preserve_legacy_eu_state_replicas
+  state_bucket_location             = var.state_bucket_location
+  state_replica_location            = var.state_replica_location
+  state_soft_delete_days            = var.state_soft_delete_days
+  noncurrent_version_days           = var.noncurrent_version_days
+  noncurrent_version_count          = var.noncurrent_version_count
+  service_account_emails            = module.identity.service_accounts
+  labels                            = var.labels
 }

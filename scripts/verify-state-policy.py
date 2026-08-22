@@ -3,8 +3,9 @@
 # Mindclade Proprietary and Confidential.
 # SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
 
-from pathlib import Path
+import re
 import sys
+from pathlib import Path
 
 root = Path(__file__).resolve().parent.parent
 primary = (root / "modules/state/main.tf").read_text()
@@ -46,11 +47,17 @@ for name, text in (("primary", primary), ("replica", replica)):
             f"{name} state bucket has a retention policy that can block state replacement"
         )
 
-require(
-    'google_storage_bucket_iam_member" "bootstrap_replica_recovery_reader',
-    replica,
-    "read-only bootstrap replica recovery binding",
-)
+for token, label in (
+    (
+        'google_storage_bucket_iam_member" "bootstrap_legacy_replica_recovery_reader',
+        "read-only legacy replica recovery binding",
+    ),
+    (
+        'google_storage_bucket_iam_member" "bootstrap_us_replica_recovery_reader',
+        "read-only U.S. replica recovery binding",
+    ),
+):
+    require(token, replica, label)
 reader_marker = 'resource "google_storage_bucket_iam_member" "reader"'
 lock_marker = 'resource "google_storage_bucket_iam_member" "reader_lock_object_admin"'
 writer_marker = 'resource "google_storage_bucket_iam_member" "writer"'
@@ -89,6 +96,10 @@ for token, label in (
     ("Activate native-lock IAM without deadlocking", "lock-IAM activation ordering"),
     ("before enabling mandatory locking", "lock-IAM pre-grant order"),
     ("must remain denied", "negative state-write activation test"),
+    (
+        "preserve_legacy_eu_state_replicas = false",
+        "greenfield legacy-replica opt-out",
+    ),
 ):
     require(token, first_apply, label)
 
@@ -156,11 +167,6 @@ for token, text, label in (
         "regional automation-secret CMEK output",
     ),
     (
-        "automation_secret_location = var.automation_secret_location",
-        root_main,
-        "shared secret replica and CMEK location",
-    ),
-    (
         "location = var.automation_secret_location",
         automation_secret,
         "Secret Manager regional replica",
@@ -177,6 +183,11 @@ for token, text, label in (
     ),
 ):
     require(token, text, label)
+if not re.search(
+    r"(?m)^\s*automation_secret_location\s*=\s*var\.automation_secret_location\s*$",
+    root_main,
+):
+    errors.append("missing shared secret replica and CMEK location")
 for token, label in (
     ('condition     = var.region == "us-central1"', "U.S. primary region"),
     ('condition     = var.residency_profile == "us-only-v1"', "residency profile"),
@@ -187,6 +198,28 @@ for token, label in (
 ):
     require(token, variables, label)
 require('repeat_interval = "3600s"', replica, "hourly state recovery copy")
+for token, label in (
+    (
+        'name     = "${var.prefix}-tfstate-${each.key}-replica-us-${var.suffix}"',
+        "distinct U.S. replica bucket identity",
+    ),
+    ('location = "europe-west4"', "explicit legacy replica location"),
+    (
+        "for_each = var.preserve_legacy_eu_state_replicas ? local.state_buckets : {}",
+        "legacy replica preservation gate",
+    ),
+    ("from = google_storage_bucket.replica", "legacy bucket state move"),
+    (
+        "to   = google_storage_bucket.legacy_replica",
+        "legacy bucket destination",
+    ),
+    ("from = google_storage_transfer_job.state", "legacy transfer-job state move"),
+    (
+        "to   = google_storage_transfer_job.state_legacy",
+        "legacy transfer-job destination",
+    ),
+):
+    require(token, replica, label)
 if "automation_secret_location   = var.state_kms_location" in root_main:
     errors.append("Secret Manager replica still reuses the state multi-region KMS location")
 if 'resource "google_kms_crypto_key" "automation_secrets" {' in seed:
@@ -229,7 +262,12 @@ require(
 narrow_kms_dependency = (
     'project  = google_project_service.seed["cloudkms.googleapis.com"].project'
 )
-for key_ring in ("state_primary", "automation_secrets", "state_replica"):
+for key_ring in (
+    "state_primary",
+    "automation_secrets",
+    "state_replica_legacy",
+    "state_replica_us",
+):
     marker = f'resource "google_kms_key_ring" "{key_ring}"'
     block = seed.split(marker, 1)[-1].split("\n}", 1)[0] if marker in seed else ""
     require(
@@ -241,8 +279,10 @@ for key_ring in ("state_primary", "automation_secrets", "state_replica"):
 storage_service_agent = (
     'member        = "serviceAccount:${data.google_storage_project_service_account.seed.email_address}"'
 )
-if seed.count(storage_service_agent) != 2:
-    errors.append("state KMS bindings must use the authoritative GCS service agent twice")
+if seed.count(storage_service_agent) != 3:
+    errors.append(
+        "primary, legacy replica, and U.S. replica KMS bindings must use the authoritative GCS service agent"
+    )
 storage_data_marker = 'data "google_storage_project_service_account" "seed"'
 storage_data = (
     seed.split(storage_data_marker, 1)[-1].split("\n}", 1)[0]

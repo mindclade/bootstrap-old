@@ -10,6 +10,8 @@ not reconstructed or relabeled here.
 
 ### Added
 
+- Added an additive `us-east4` state-replica migration with distinct buckets, CMEK,
+  transfer jobs, read-only recovery access, and a fail-closed operator runbook.
 - Added the exact estate-wide `LEGAL.md` reliance policy and made it part of
   the repository contract.
 - Added CI/CD-project Cloud Identity API enablement as the explicit quota-consumer
@@ -31,6 +33,9 @@ not reconstructed or relabeled here.
   is the sole root license surface.
 
 ### Fixed
+
+- Preserved the deployed Europe recovery estate under explicit legacy Terraform addresses so
+  the `us-only-v1` contract never attempts an in-place location replacement.
 
 ### Security
 

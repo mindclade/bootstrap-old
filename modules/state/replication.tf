@@ -11,11 +11,55 @@ resource "google_project_service" "storage_transfer" {
   disable_dependent_services = false
 }
 
-resource "google_storage_bucket" "replica" {
+resource "google_storage_bucket" "legacy_replica" {
+  # checkov:skip=CKV_GCP_62:Cloud Audit Logs DATA_READ/DATA_WRITE is enabled in modules/projects/seed.tf; a second server-access-log bucket would add another Ring-0 state dependency.
+  for_each = var.preserve_legacy_eu_state_replicas ? local.state_buckets : {}
+  project  = var.seed_project_id
+  name     = "${var.prefix}-tfstate-${each.key}-replica-${var.suffix}"
+  location = "europe-west4"
+
+  uniform_bucket_level_access = true
+  public_access_prevention    = "enforced"
+  force_destroy               = false
+
+  versioning {
+    enabled = true
+  }
+  soft_delete_policy {
+    retention_duration_seconds = min(var.state_soft_delete_days * 2, 90) * 86400
+  }
+  encryption {
+    default_kms_key_name = var.legacy_replica_kms_key_id
+  }
+  lifecycle_rule {
+    condition {
+      days_since_noncurrent_time = var.noncurrent_version_days * 2
+      num_newer_versions         = var.noncurrent_version_count
+    }
+    action {
+      type = "Delete"
+    }
+  }
+
+  labels = merge(var.labels, { purpose = "terraform-state-replica", "state-scope" = each.key })
+
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+moved {
+  from = google_storage_bucket.replica
+  to   = google_storage_bucket.legacy_replica
+}
+
+# The us-only-v1 recovery copy uses distinct immutable bucket names. This is deliberately
+# additive so Terraform cannot propose replacing a protected legacy bucket to change location.
+resource "google_storage_bucket" "replica_us" {
   # checkov:skip=CKV_GCP_62:Cloud Audit Logs DATA_READ/DATA_WRITE is enabled in modules/projects/seed.tf; a second server-access-log bucket would add another Ring-0 state dependency.
   for_each = local.state_buckets
   project  = var.seed_project_id
-  name     = "${var.prefix}-tfstate-${each.key}-replica-${var.suffix}"
+  name     = "${var.prefix}-tfstate-${each.key}-replica-us-${var.suffix}"
   location = var.state_replica_location
 
   uniform_bucket_level_access = true
@@ -41,7 +85,11 @@ resource "google_storage_bucket" "replica" {
     }
   }
 
-  labels = merge(var.labels, { purpose = "terraform-state-replica", "state-scope" = each.key })
+  labels = merge(var.labels, {
+    purpose       = "terraform-state-replica"
+    "state-scope" = each.key
+    residency     = "us-only-v1"
+  })
 
   lifecycle {
     prevent_destroy = true
@@ -67,9 +115,21 @@ resource "google_storage_bucket_iam_member" "transfer_source_object_viewer" {
   member   = "serviceAccount:${data.google_storage_transfer_project_service_account.seed.email}"
 }
 
-resource "google_storage_bucket_iam_member" "transfer_sink_bucket_writer" {
+resource "google_storage_bucket_iam_member" "transfer_legacy_sink_bucket_writer" {
+  for_each = var.preserve_legacy_eu_state_replicas ? local.state_buckets : {}
+  bucket   = google_storage_bucket.legacy_replica[each.key].name
+  role     = "roles/storage.legacyBucketWriter"
+  member   = "serviceAccount:${data.google_storage_transfer_project_service_account.seed.email}"
+}
+
+moved {
+  from = google_storage_bucket_iam_member.transfer_sink_bucket_writer
+  to   = google_storage_bucket_iam_member.transfer_legacy_sink_bucket_writer
+}
+
+resource "google_storage_bucket_iam_member" "transfer_us_sink_bucket_writer" {
   for_each = local.state_buckets
-  bucket   = google_storage_bucket.replica[each.key].name
+  bucket   = google_storage_bucket.replica_us[each.key].name
   role     = "roles/storage.legacyBucketWriter"
   member   = "serviceAccount:${data.google_storage_transfer_project_service_account.seed.email}"
 }
@@ -77,23 +137,36 @@ resource "google_storage_bucket_iam_member" "transfer_sink_bucket_writer" {
 # The protected recovery workflow uses the read-only bootstrap plan identity. It already has
 # access to authoritative bootstrap state, so replica read access does not widen its data class;
 # it makes the documented independent recovery path testable without an apply identity.
-resource "google_storage_bucket_iam_member" "bootstrap_replica_recovery_reader" {
-  bucket = google_storage_bucket.replica["bootstrap"].name
+resource "google_storage_bucket_iam_member" "bootstrap_legacy_replica_recovery_reader" {
+  count = var.preserve_legacy_eu_state_replicas ? 1 : 0
+
+  bucket = google_storage_bucket.legacy_replica["bootstrap"].name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${var.service_account_emails["bootstrap-plan"]}"
 }
 
-resource "google_storage_transfer_job" "state" {
-  for_each    = local.state_buckets
+moved {
+  from = google_storage_bucket_iam_member.bootstrap_replica_recovery_reader
+  to   = google_storage_bucket_iam_member.bootstrap_legacy_replica_recovery_reader[0]
+}
+
+resource "google_storage_bucket_iam_member" "bootstrap_us_replica_recovery_reader" {
+  bucket = google_storage_bucket.replica_us["bootstrap"].name
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${var.service_account_emails["bootstrap-plan"]}"
+}
+
+resource "google_storage_transfer_job" "state_legacy" {
+  for_each    = var.preserve_legacy_eu_state_replicas ? local.state_buckets : {}
   project     = var.seed_project_id
-  description = "Replicate ${each.key} Terraform state"
+  description = "Replicate ${each.key} Terraform state to the legacy recovery estate"
 
   transfer_spec {
     gcs_data_source {
       bucket_name = google_storage_bucket.state[each.key].name
     }
     gcs_data_sink {
-      bucket_name = google_storage_bucket.replica[each.key].name
+      bucket_name = google_storage_bucket.legacy_replica[each.key].name
     }
     transfer_options {
       delete_objects_from_source_after_transfer  = false
@@ -126,6 +199,57 @@ resource "google_storage_transfer_job" "state" {
   depends_on = [
     google_storage_bucket_iam_member.transfer_source_bucket_reader,
     google_storage_bucket_iam_member.transfer_source_object_viewer,
-    google_storage_bucket_iam_member.transfer_sink_bucket_writer,
+    google_storage_bucket_iam_member.transfer_legacy_sink_bucket_writer,
+  ]
+}
+
+moved {
+  from = google_storage_transfer_job.state
+  to   = google_storage_transfer_job.state_legacy
+}
+
+resource "google_storage_transfer_job" "state_us" {
+  for_each    = local.state_buckets
+  project     = var.seed_project_id
+  description = "Replicate ${each.key} Terraform state to us-east4"
+
+  transfer_spec {
+    gcs_data_source {
+      bucket_name = google_storage_bucket.state[each.key].name
+    }
+    gcs_data_sink {
+      bucket_name = google_storage_bucket.replica_us[each.key].name
+    }
+    transfer_options {
+      delete_objects_from_source_after_transfer  = false
+      delete_objects_unique_in_sink              = false
+      overwrite_objects_already_existing_in_sink = true
+    }
+  }
+
+  schedule {
+    schedule_start_date {
+      year  = 2026
+      month = 1
+      day   = 1
+    }
+    start_time_of_day {
+      hours   = 3
+      minutes = 47
+      seconds = 0
+      nanos   = 0
+    }
+    repeat_interval = "3600s"
+  }
+
+  logging_config {
+    log_actions       = ["FIND", "COPY"]
+    log_action_states = ["SUCCEEDED", "FAILED"]
+  }
+
+  depends_on = [
+    google_storage_bucket_iam_member.transfer_source_bucket_reader,
+    google_storage_bucket_iam_member.transfer_source_object_viewer,
+    google_storage_bucket_iam_member.transfer_us_sink_bucket_writer,
   ]
 }

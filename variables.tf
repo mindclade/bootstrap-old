@@ -116,6 +116,12 @@ variable "state_replica_kms_location" {
   }
 }
 
+variable "preserve_legacy_eu_state_replicas" {
+  description = "Preserve the deployed Europe recovery estate during the additive us-only-v1 migration. Greenfield first apply sets this false."
+  type        = bool
+  default     = true
+}
+
 variable "state_soft_delete_days" {
   description = "GCS soft-delete retention for primary state objects."
   type        = number

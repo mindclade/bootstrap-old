@@ -32,7 +32,7 @@ Initialize an isolated working copy against a temporary backend/prefix or inspec
 locally. After selecting the correct generation, copy it to the authoritative object and run a
 read-only plan. Expect no changes.
 
-## Option 2 — recover from the independent replica
+## Option 2 — recover from an independent replica
 
 ```sh
 REPLICA="gs://<bootstrap-replica-bucket>"
@@ -40,7 +40,12 @@ gcloud storage ls --all-versions "${REPLICA}/bootstrap/**"
 gcloud storage cp "${REPLICA}/bootstrap/default.tfstate" ./candidate.tfstate
 ```
 
-The replica can be up to one transfer interval stale. Compare Cloud Audit Logs and Git history
+Use the authoritative U.S. bucket from `state_replica_buckets` first. During the additive
+migration, `legacy_state_replica_buckets` exposes the preserved Europe copy as a secondary
+recovery source. Record which output, location, object generation, and CMEK produced the
+candidate. Never choose between copies only by timestamp.
+
+A replica can be up to one transfer interval stale. Compare Cloud Audit Logs and Git history
 to identify resources created after the replicated generation, then import those resources
 before any apply.
 
