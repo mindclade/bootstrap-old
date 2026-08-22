@@ -391,7 +391,7 @@
         },
         "job_workflow_ref": {
           "type": "string",
-          "pattern": "^mindclade/\\.github/\\.github/workflows/reusable-(arc-(wif-canary|oci-build|qualification-attest)|binauthz-sign)\\.yml@refs/tags/v4\\.0\\.0$|^mindclade/\\.github/\\.github/workflows/reusable-(arc-oci-qualify|gitops-promote)\\.yml@refs/tags/v5\\.0\\.0$"
+          "pattern": "^mindclade/\\.github/\\.github/workflows/reusable-(arc-[a-z0-9-]+|binauthz-sign|gitops-promote)\\.yml@refs/tags/v5\\.0\\.0$"
         }
       }
     },

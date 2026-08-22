@@ -262,11 +262,7 @@ for capability, workflow in (
     ("promoter", "reusable-gitops-promote.yml"),
 ):
     require(f"{capability} = {{", wif, f"ARC {capability} provider contract")
-    version = (
-        "v5.0.0"
-        if capability in {"qualification-reader", "promoter"}
-        else "v5.0.0"
-    )
+    version = "v5.0.0"
     require(
         f"{workflow}@refs/tags/{version}",
         wif,
