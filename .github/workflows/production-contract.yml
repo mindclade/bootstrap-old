@@ -31,4 +31,4 @@ jobs:
           persist-credentials: false
       - name: Validate production contract
         shell: bash
-        run: python3 scripts/validate-production-contract.py
+        run: make validate-production-contract

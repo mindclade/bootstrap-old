@@ -1,4 +1,4 @@
-.PHONY: validate validate-core validate-bazel-cache-identity validate-drill-matrix validate-plan-change validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-bazel-cache-identity validate-drill-matrix validate-plan-change validate-production-contract validate-production-contract-tests validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
 validate: validate-core validate-repository-home
 
@@ -41,6 +41,8 @@ license-headers:
 license-headers-fix:
 	python3 scripts/license-header-check.py --fix
 
-.PHONY: validate-production-contract
-validate-production-contract:
+validate-production-contract: validate-production-contract-tests
 	python3 scripts/validate-production-contract.py
+
+validate-production-contract-tests:
+	python3 -m unittest tests.test_production_contract
