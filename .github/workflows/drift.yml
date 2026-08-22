@@ -26,10 +26,11 @@ env:
   TF_VAR_bootstrap_folder_id: ${{ vars.BOOTSTRAP_FOLDER_ID || '' }}
   TF_VAR_prefix: ${{ vars.RESOURCE_PREFIX || 'mc' }}
   TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
+  TF_VAR_residency_profile: ${{ vars.RESIDENCY_PROFILE || 'us-only-v1' }}
   TF_VAR_state_bucket_location: ${{ vars.STATE_BUCKET_LOCATION || 'US' }}
   TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION || 'us' }}
-  TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'europe-west4' }}
-  TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'europe-west4' }}
+  TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'us-east4' }}
+  TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'us-east4' }}
   TF_VAR_github_org: ${{ vars.GH_ORGANIZATION || 'mindclade' }}
   TF_VAR_github_org_id: ${{ vars.GH_ORGANIZATION_ID }}
   TF_VAR_github_repository_ids: ${{ vars.GH_REPOSITORY_IDS_JSON }}

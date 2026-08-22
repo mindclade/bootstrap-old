@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.2.0.schema.json",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.4.0.schema.json",
   "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.2.0"
+      "const": "1.4.0"
     },
     "organization_id": {
       "type": "string",
@@ -69,7 +69,10 @@
         "workload_identity_pool",
         "workload_identity_providers",
         "repository_identities",
-        "artifact_signer"
+        "artifact_signer",
+        "artifact_release_identities",
+        "dr_evidence_identity",
+        "production_qualification_identity"
       ],
       "properties": {
         "organization": {
@@ -151,7 +154,74 @@
               "$ref": "#/$defs/wif_principal"
             },
             "job_workflow_ref": {
-              "const": "mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v3.0.0"
+              "const": "mindclade/.github/.github/workflows/reusable-binauthz-sign.yml@refs/tags/v5.0.0"
+            }
+          }
+        },
+        "artifact_release_identities": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "canary",
+            "builder",
+            "qualification-reader",
+            "qualifier",
+            "signer",
+            "promoter"
+          ],
+          "properties": {
+            "canary": {"$ref": "#/$defs/artifact_release_identity"},
+            "builder": {"$ref": "#/$defs/artifact_release_identity"},
+            "qualification-reader": {"$ref": "#/$defs/artifact_release_identity"},
+            "qualifier": {"$ref": "#/$defs/artifact_release_identity"},
+            "signer": {"$ref": "#/$defs/artifact_release_identity"},
+            "promoter": {"$ref": "#/$defs/artifact_release_identity"}
+          }
+        },
+        "dr_evidence_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["workload_identity_provider", "job_workflow_ref", "principals"],
+          "properties": {
+            "workload_identity_provider": {"$ref": "#/$defs/wif_provider"},
+            "job_workflow_ref": {
+              "const": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0"
+            },
+            "principals": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["bootstrap:scratch", "bootstrap:staging", "github-config:scratch", "github-config:staging", "infrastructure-live:scratch", "infrastructure-live:staging", "gitops:scratch", "gitops:staging"],
+              "properties": {
+                "bootstrap:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "bootstrap:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "github-config:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "github-config:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "infrastructure-live:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "infrastructure-live:staging": {"$ref": "#/$defs/dr_evidence_principal"},
+                "gitops:scratch": {"$ref": "#/$defs/dr_evidence_principal"},
+                "gitops:staging": {"$ref": "#/$defs/dr_evidence_principal"}
+              }
+            }
+          }
+        },
+        "production_qualification_identity": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "workload_identity_provider",
+            "principal",
+            "subject",
+            "workflow_ref"
+          ],
+          "properties": {
+            "workload_identity_provider": {"$ref": "#/$defs/wif_provider"},
+            "principal": {"$ref": "#/$defs/production_qualification_principal"},
+            "subject": {
+              "type": "string",
+              "pattern": "^repo:mindclade@[0-9]+/gitops@[0-9]+:environment:production$"
+            },
+            "workflow_ref": {
+              "const": "mindclade/gitops/.github/workflows/production-qualification-evidence.yml@refs/heads/main"
             }
           }
         }
@@ -166,9 +236,7 @@
         "workload_identity_provider"
       ],
       "properties": {
-        "enabled": {
-          "type": "boolean"
-        },
+        "enabled": {"const": false},
         "workload_identity_pool": {
           "oneOf": [
             {
@@ -291,7 +359,41 @@
     },
     "wif_principal": {
       "type": "string",
-      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:environment:release$"
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/[a-z0-9-]+/subject/(arc-(canary|builder|qualification-reader|qualifier|promoter):)?repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:(environment:release|ref:refs/heads/main)$"
+    },
+    "dr_evidence_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/dr-evidence:repo:mindclade@[0-9]+/(bootstrap|github-config|infrastructure-live|gitops)@[0-9]+:environment:(scratch|staging)$"
+    },
+    "production_qualification_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/production-qualification:repo:mindclade@[0-9]+/gitops@[0-9]+:environment:production$"
+    },
+    "artifact_release_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workload_identity_provider",
+        "principal",
+        "subject",
+        "workflow_ref",
+        "job_workflow_ref"
+      ],
+      "properties": {
+        "workload_identity_provider": {"$ref": "#/$defs/wif_provider"},
+        "principal": {"$ref": "#/$defs/wif_principal"},
+        "subject": {
+          "type": "string",
+          "pattern": "^repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:(environment:release|ref:refs/heads/main)$"
+        },
+        "workflow_ref": {
+          "const": "mindclade/mindclade-internal-monorepo/.github/workflows/release.yml@refs/heads/main"
+        },
+        "job_workflow_ref": {
+          "type": "string",
+          "pattern": "^mindclade/\\.github/\\.github/workflows/reusable-(arc-(wif-canary|oci-build|qualification-attest)|binauthz-sign)\\.yml@refs/tags/v4\\.0\\.0$|^mindclade/\\.github/\\.github/workflows/reusable-(arc-oci-qualify|gitops-promote)\\.yml@refs/tags/v5\\.0\\.0$"
+        }
+      }
     },
     "repository_identity": {
       "type": "object",

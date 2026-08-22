@@ -1,7 +1,13 @@
-.PHONY: validate lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-drill-matrix validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
-validate: validate-production-contract
+validate: validate-drill-matrix validate-production-contract validate-repository-home
 	bash scripts/validate.sh
+
+validate-drill-matrix:
+	python3 scripts/validate-drill-matrix.py
+
+validate-repository-home:
+	python3 scripts/validate-repository-home.py --root .
 
 lint:
 	actionlint -config-file .github/actionlint.yaml .github/workflows/*.yml

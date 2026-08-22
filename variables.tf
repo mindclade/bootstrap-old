@@ -45,18 +45,44 @@ variable "region" {
   description = "Primary bootstrap region for regional control-plane resources."
   type        = string
   default     = "us-central1"
+
+  validation {
+    condition     = var.region == "us-central1"
+    error_message = "The us-only-v1 residency profile requires region us-central1."
+  }
+}
+
+variable "residency_profile" {
+  description = "Immutable location policy selected by the enterprise blueprint."
+  type        = string
+  default     = "us-only-v1"
+
+  validation {
+    condition     = var.residency_profile == "us-only-v1"
+    error_message = "residency_profile must be us-only-v1."
+  }
 }
 
 variable "state_bucket_location" {
   description = "Primary GCS location for Terraform state buckets."
   type        = string
   default     = "US"
+
+  validation {
+    condition     = var.state_bucket_location == "US"
+    error_message = "The us-only-v1 residency profile requires the US state multi-region."
+  }
 }
 
 variable "state_kms_location" {
   description = "Cloud KMS location compatible with state_bucket_location (for US multi-region, use us)."
   type        = string
   default     = "us"
+
+  validation {
+    condition     = var.state_kms_location == "us"
+    error_message = "The us-only-v1 residency profile requires the us KMS multi-region."
+  }
 }
 
 variable "automation_secret_location" {
@@ -65,31 +91,28 @@ variable "automation_secret_location" {
   default     = "us-central1"
 
   validation {
-    condition = (
-      can(regex("^[a-z]+(?:-[a-z0-9]+)+[0-9]$", var.automation_secret_location)) &&
-      !contains(["global", "us", "eu", "asia"], lower(var.automation_secret_location))
-    )
-    error_message = "automation_secret_location must be a single Google Cloud region such as us-central1, not a multi-region or global location."
+    condition     = var.automation_secret_location == "us-central1"
+    error_message = "The us-only-v1 residency profile requires automation secrets in us-central1."
   }
 }
 
 variable "state_replica_location" {
-  description = "Independent GCS location for state replicas."
+  description = "Independent U.S. GCS region for state replicas."
   type        = string
-  default     = "europe-west4"
+  default     = "us-east4"
   validation {
-    condition     = lower(var.state_replica_location) != lower(var.state_bucket_location)
-    error_message = "state_replica_location must differ from state_bucket_location."
+    condition     = var.state_replica_location == "us-east4"
+    error_message = "The us-only-v1 residency profile requires state replicas in us-east4."
   }
 }
 
 variable "state_replica_kms_location" {
   description = "Cloud KMS location compatible with state_replica_location."
   type        = string
-  default     = "europe-west4"
+  default     = "us-east4"
   validation {
-    condition     = lower(var.state_replica_kms_location) != lower(var.state_kms_location)
-    error_message = "state_replica_kms_location must differ from state_kms_location."
+    condition     = var.state_replica_kms_location == "us-east4"
+    error_message = "The us-only-v1 residency profile requires replica CMEK in us-east4."
   }
 }
 
@@ -164,9 +187,13 @@ variable "github_repository_ids" {
 }
 
 variable "enable_buildkite_wif" {
-  description = "Create the Buildkite OIDC workload identity pool/provider. Enable after immutable organization and pipeline IDs are known."
+  description = "Deprecated transition guard. Buildkite federation cannot be activated after the ARC authority amendment."
   type        = bool
   default     = false
+  validation {
+    condition     = var.enable_buildkite_wif == false
+    error_message = "Buildkite WIF is retired as an authority path; keep enable_buildkite_wif false."
+  }
 }
 
 variable "buildkite_organization_id" {

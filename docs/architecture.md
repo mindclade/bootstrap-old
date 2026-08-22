@@ -23,7 +23,7 @@ state belongs to `gitops`.
 
 - the bootstrap folder and seed/state and CI-federation projects;
 - primary and independently located replica Terraform state buckets and CMEKs;
-- repository-isolated GitHub Actions WIF providers and optional Buildkite federation;
+- repository- and capability-isolated GitHub Actions WIF providers for ARC;
 - the signer-only monorepo trust condition and exact signer principal handed to
   `infrastructure-live`;
 - plan/apply identities required to bring up higher control repositories;
@@ -116,12 +116,11 @@ implementation paths directly.
   service account accepts a repository-wide principal.
 - Direct-workflow providers map only universal GitHub claims. The optional
   `job_workflow_ref`/`job_workflow_sha` claims are mapped only on the monorepo signer provider.
-- The monorepo GitHub provider accepts only the exact `refs/heads/main` ref with the protected
-  `release` subject executing the released `reusable-binauthz-sign.yml@v3.0.0`; builders use
-  separate Buildkite trust.
-- Buildkite jobs request tokens with `--subject-claim pipeline_id --claim organization_id` and
-  the exact provider resource name as audience. Google maps the immutable pipeline UUID—not
-  Buildkite's potentially overlong compound default subject—to `google.subject`.
+- The monorepo signer provider accepts only the exact `refs/heads/main` ref with the protected
+  `release` subject executing the released `reusable-binauthz-sign.yml@v5.0.0`.
+- ARC canary, builder, qualification-reader, qualifier, signer, and promoter each use an exact
+  capability provider restricted to protected-main push, exact caller, exact v5 reusable
+  workflow, immutable repository IDs, and a provider-specific audience.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
