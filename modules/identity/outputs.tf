@@ -90,6 +90,19 @@ output "production_qualification_identity" {
   }
 }
 
+output "workstation_image_identity" {
+  description = "Exact WIF provider and protected-environment principal for immutable workstation-image publication."
+  value = {
+    workload_identity_provider = "${local.github_pool_name}/providers/${google_iam_workload_identity_pool_provider.github_workstation_image.workload_identity_pool_provider_id}"
+    principal                  = "principal://iam.googleapis.com/${local.github_pool_name}/subject/workstation-image:${local.github_workstation_image_subject}"
+    repository                 = "${var.github_org}/${local.github_workstation_image_repository}"
+    repository_id              = var.github_repository_ids[local.github_workstation_image_repository]
+    subject                    = local.github_workstation_image_subject
+    workflow_ref               = local.github_workstation_image_workflow_ref
+    job_workflow_ref           = local.github_workstation_image_job_workflow_ref
+  }
+}
+
 output "bazel_cache_identity" {
   description = "Dedicated GitHub WIF provider and exact read/write principals for Bazel remote caching."
   value = {

@@ -10,6 +10,9 @@ not reconstructed or relabeled here.
 
 ### Added
 
+- Added Ring-0 platform contract `1.6.0` with a dedicated immutable-workstation-image WIF
+  provider bound to one protected environment, manual caller, and exact v5 reusable workflow;
+  object publication and all Compute resources remain normal-plane responsibilities.
 - Added Ring-0 platform contract `1.5.0` with a dedicated Bazel-cache WIF provider,
   pull-request read isolation, and distinct protected main, merge-group, and nightly write routes;
   cache service accounts, storage, and activation remain normal-plane responsibilities.

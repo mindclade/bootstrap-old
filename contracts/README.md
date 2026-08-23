@@ -36,6 +36,13 @@ and repository IDs, exact event ref, exact workflow path at that ref, workflow c
 provider-specific audience. Reader/writer service accounts, bucket IAM, CMEK access, and the cache
 bucket remain normal-plane resources owned by `infrastructure-live`.
 
+Contract `1.6.0` adds `workstation_image_identity`: a dedicated provider for create-only NixOS
+raw-disk publication. It binds the immutable monorepo ID, the
+`workstation-image-publication` environment subject, protected `main`, manual dispatch, the exact
+`.github/workflows/nixos-image.yml` caller, and
+`reusable-nixos-gce-image-publish.yml@v5.0.0`. The service account, bucket IAM, Compute Image,
+workstation selection, and rollout remain normal-plane resources owned by `infrastructure-live`.
+
 Retrieve and validate the value after an approved apply:
 
 ```sh

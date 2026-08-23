@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.5.0.schema.json",
+  "$id": "https://mindclade.com/contracts/bootstrap/platform-contract-1.6.0.schema.json",
   "title": "Mindclade Ring-0 platform contract",
   "type": "object",
   "additionalProperties": false,
@@ -20,7 +20,7 @@
   ],
   "properties": {
     "contract_version": {
-      "const": "1.5.0"
+      "const": "1.6.0"
     },
     "organization_id": {
       "type": "string",
@@ -73,7 +73,8 @@
         "artifact_release_identities",
         "dr_evidence_identity",
         "production_qualification_identity",
-        "bazel_cache_identity"
+        "bazel_cache_identity",
+        "workstation_image_identity"
       ],
       "properties": {
         "organization": {
@@ -228,6 +229,9 @@
         },
         "bazel_cache_identity": {
           "$ref": "#/$defs/bazel_cache_identity"
+        },
+        "workstation_image_identity": {
+          "$ref": "#/$defs/workstation_image_identity"
         }
       }
     },
@@ -372,6 +376,42 @@
     "production_qualification_principal": {
       "type": "string",
       "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/production-qualification:repo:mindclade@[0-9]+/gitops@[0-9]+:environment:production$"
+    },
+    "workstation_image_principal": {
+      "type": "string",
+      "pattern": "^principal://iam\\.googleapis\\.com/projects/[0-9]+/locations/global/workloadIdentityPools/github/subject/workstation-image:repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:environment:workstation-image-publication$"
+    },
+    "workstation_image_identity": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "workload_identity_provider",
+        "principal",
+        "repository",
+        "repository_id",
+        "subject",
+        "workflow_ref",
+        "job_workflow_ref"
+      ],
+      "properties": {
+        "workload_identity_provider": {
+          "type": "string",
+          "pattern": "^projects/[0-9]+/locations/global/workloadIdentityPools/github/providers/gh-workstation-image$"
+        },
+        "principal": {"$ref": "#/$defs/workstation_image_principal"},
+        "repository": {"const": "mindclade/mindclade-internal-monorepo"},
+        "repository_id": {"type": "string", "pattern": "^[0-9]+$"},
+        "subject": {
+          "type": "string",
+          "pattern": "^repo:mindclade@[0-9]+/mindclade-internal-monorepo@[0-9]+:environment:workstation-image-publication$"
+        },
+        "workflow_ref": {
+          "const": "mindclade/mindclade-internal-monorepo/.github/workflows/nixos-image.yml@refs/heads/main"
+        },
+        "job_workflow_ref": {
+          "const": "mindclade/.github/.github/workflows/reusable-nixos-gce-image-publish.yml@refs/tags/v5.0.0"
+        }
+      }
     },
     "bazel_cache_principal": {
       "type": "string",
