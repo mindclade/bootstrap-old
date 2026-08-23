@@ -254,6 +254,12 @@ concurrency group never cancels an active apply. Emergency source rollback is av
 the current `main` workflow through the explicit `source_rollback` and full strict-ancestor
 `source_rollback_sha` inputs with a valid change or incident reference and protected approval.
 
+Merging this guard does not retrofit runs that were queued, pending, or waiting for environment
+approval under an older workflow revision. Before treating the guard as active, cancel or reject
+every pre-guard run, dispatch a fresh run from the current protected `main`, and observe that run
+through its final pre-apply source and freshness checks. Never approve an older waiting run merely
+because a newer workflow contains the guard.
+
 For pull requests, `plan.yml` enters the protected `plan` environment only when Terraform,
 `.terraform.lock.hcl`, `.terraform-version`, or the plan classifier/workflow changes. Manual and
 merge-queue runs always plan. The always-present `plan / verdict` check succeeds without cloud
