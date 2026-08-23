@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
     inputs:
       report_path:
-        description: Repository-relative path to the completed report v2.
+        description: Repository-relative path to a completed v3 report (historical v2 remains accepted).
         required: true
         type: string
       environment:

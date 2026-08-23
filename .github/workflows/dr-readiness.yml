@@ -1,0 +1,66 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: DR readiness
+
+on:
+  schedule:
+    - cron: "11 8 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bootstrap-dr-readiness
+  cancel-in-progress: true
+
+jobs:
+  evaluate:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Derive schedule and evidence readiness
+        run: python3 scripts/dr-readiness.py --check-doc --output dr-readiness.json
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: dr-readiness-${{ github.run_id }}
+          path: dr-readiness.json
+          retention-days: 30
+          if-no-files-found: error
+      - name: Reconcile readiness issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          marker='<!-- mindclade-dr-readiness -->'
+          existing="$(gh issue list --state open --search "$marker in:body" --json number --jq '.[0].number // empty')"
+          alert_count="$(jq '[.summary.overdue,.summary.critical,.summary.warning,.summary.expired,.summary.notRun] | add' dr-readiness.json)"
+          if [[ "$alert_count" -eq 0 ]]; then
+            if [[ -n "$existing" ]]; then gh issue close "$existing" --comment 'DR evidence and schedules are current again.'; fi
+            exit 0
+          fi
+          {
+            echo "$marker"
+            echo '## Disaster-recovery readiness requires action'
+            echo
+            jq -r '"- overdue: \(.summary.overdue)\n- due within 7 days: \(.summary.critical)\n- due within 30 days: \(.summary.warning)\n- expired evidence: \(.summary.expired)\n- never qualified: \(.summary.notRun)"' dr-readiness.json
+            echo
+            echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
+            echo
+            echo '> This is a source-derived schedule/evidence inventory. It does not execute a drill or prove recovery.'
+          } > body.md
+          if [[ -n "$existing" ]]; then
+            gh issue edit "$existing" --title 'DR readiness requires action' --body-file body.md
+          else
+            gh issue create --title 'DR readiness requires action' --label security --body-file body.md
+          fi

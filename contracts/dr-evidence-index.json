@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "warningDays": 30,
+  "criticalDays": 7,
+  "evidence": [
+    {"drillId": "bootstrap-clean-room", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "terraform-state-recovery", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "github-idp-outage", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "org-policy-rollback", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "vpc-sc-lockout", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "gke-reconstruction", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "argocd-rebootstrap", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "cloud-sql-restore", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "protected-bucket-restore", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null},
+    {"drillId": "compromised-artifact-revocation", "qualifiedAt": null, "expiresAt": null, "reportSha256": null, "evidenceUri": null}
+  ]
+}

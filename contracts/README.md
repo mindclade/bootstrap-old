@@ -3,6 +3,10 @@
 `drill-matrix.json` is the machine-readable estate DR objective, cadence, RPO/RTO, environment,
 and two-operator evidence contract. It schedules work; it is never itself runtime evidence.
 
+`dr-evidence-index.json` is the reviewed, non-secret index of qualified report digests, protected
+archive URIs, and expiry dates. `scripts/dr-readiness.py` joins it to the drill matrix, generates
+`docs/generated/dr-readiness.md`, and emits the sanitized runtime JSON consumed by the daily alert.
+
 The `platform_contract` Terraform output is the only supported machine interface from Ring 0.
 It exports non-secret state, federation, recovery, and automation-identity identifiers.
 Consuming repositories must not read bootstrap implementation details or remote state directly.

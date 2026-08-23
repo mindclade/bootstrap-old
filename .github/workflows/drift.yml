@@ -86,20 +86,15 @@ jobs:
           case "${code}" in
             0)
               echo "drift=false" >> "${GITHUB_OUTPUT}"
-              jq -n --arg commit "${GITHUB_SHA}" '{drift: false, commit: $commit, creates: 0, updates: 0, deletes_or_replacements: 0}' > drift-summary.json
+              jq -n --arg commit "${GITHUB_SHA}" '{schemaVersion: 1, status: "clean", commit: $commit, actions: {create: 0, update: 0, delete: 0, replace: 0, read: 0, noOp: 0}, risk: {destructive: false, criticalChangeCount: 0}}' > drift-summary.json
               ;;
             2)
               echo "drift=true" >> "${GITHUB_OUTPUT}"
-              terraform show -json "${plan_file}" | jq --arg commit "${GITHUB_SHA}" '{
-                drift: true,
-                commit: $commit,
-                creates: ([.resource_changes[]? | select(.change.actions | index("create"))] | length),
-                updates: ([.resource_changes[]? | select(.change.actions == ["update"])] | length),
-                deletes_or_replacements: ([.resource_changes[]? | select(.change.actions | index("delete"))] | length)
-              }' > drift-summary.json
+              terraform show -json "${plan_file}" > "${RUNNER_TEMP}/bootstrap-drift-plan.json"
+              python3 scripts/summarize-drift.py "${RUNNER_TEMP}/bootstrap-drift-plan.json" --commit "${GITHUB_SHA}" --output drift-summary.json
               ;;
             *)
-              jq -n --arg commit "${GITHUB_SHA}" '{drift: null, commit: $commit, error: "terraform plan failed; raw output discarded"}' > drift-summary.json
+              jq -n --arg commit "${GITHUB_SHA}" '{schemaVersion: 1, status: "error", commit: $commit, error: "terraform plan failed; raw output discarded"}' > drift-summary.json
               echo "::error::Terraform drift evaluation failed. Raw output is not retained because it can contain Ring-0 metadata."
               exit 1
               ;;
@@ -112,22 +107,24 @@ jobs:
           if-no-files-found: error
           retention-days: 7
       - name: Maintain drift issue
+        if: always()
         env:
           GH_TOKEN: ${{ github.token }}
           DRIFT: ${{ steps.plan.outputs.drift }}
+          PLAN_OUTCOME: ${{ steps.plan.outcome }}
         run: |
           set -euo pipefail
           marker='<!-- mindclade-bootstrap-drift -->'
           issue="$(gh issue list --state open --search "$marker in:body" --json number --jq '.[0].number // empty')"
-          if [[ "$DRIFT" == false ]]; then
+          if [[ "$PLAN_OUTCOME" == success && "$DRIFT" == false ]]; then
             if [[ -n "$issue" ]]; then gh issue close "$issue" --comment 'Drift is clean again.'; fi
             exit 0
           fi
           {
             echo "$marker"
-            echo '## Ring-0 drift detected'
+            if [[ "$PLAN_OUTCOME" == success ]]; then echo '## Ring-0 drift detected'; else echo '## Ring-0 drift scan failed'; fi
             echo
-            echo 'The live Ring-0 estate differs from Git. Review the protected workflow run and cloud audit logs before reconciling.'
+            if [[ "$PLAN_OUTCOME" == success ]]; then echo 'The live Ring-0 estate differs from Git. Review the protected workflow run and cloud audit logs before reconciling.'; else echo 'The read-only Ring-0 scan did not complete. Raw error output was discarded; inspect the protected run.'; fi
             echo
             echo "Run: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
             echo

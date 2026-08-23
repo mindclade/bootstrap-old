@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "reportSchema": "mindclade/.github/schemas/drill-report-v2.schema.json",
+  "reportSchema": "mindclade/.github/schemas/drill-report-v3.schema.json",
   "evidenceWorkflow": "mindclade/.github/.github/workflows/reusable-dr-evidence.yml@refs/tags/v5.0.0",
   "operatorPolicy": {
     "requiredRoles": ["primary", "observer"],
