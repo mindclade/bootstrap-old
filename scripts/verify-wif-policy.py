@@ -323,12 +323,8 @@ if re.search(
     r"google_service_account_key|private_key_data|service_account.*\.json", all_tf, re.I
 ):
     errors.append("static service-account key path")
-if re.search(r"roles/(?:owner|editor)", all_tf, re.I):
-    errors.append("Owner/Editor automation role")
-# Basic Viewer may exist only in project_roles, never in org_roles.
-for block in re.finditer(r"org_roles\s*=\s*\[(.*?)\]", sa, re.S):
-    if "roles/viewer" in block.group(1):
-        errors.append("organization-wide basic Viewer grant")
+if re.search(r'"roles/(?:owner|editor|viewer)"', all_tf, re.I):
+    errors.append("basic Owner/Editor/Viewer automation role")
 for name in (
     "artifact-builder",
     "artifact-qualifier",
@@ -384,6 +380,11 @@ for token, label in (
     ('"bootstrap-plan",', "bootstrap plan billing viewer member"),
     ('"bootstrap-drift",', "bootstrap drift billing viewer member"),
     ('role               = "roles/billing.viewer"', "read-only billing role"),
+    (
+        'resource "google_billing_account_iam_member" "bootstrap_billing_iam_admin"',
+        "bootstrap billing IAM administration binding",
+    ),
+    ('role               = "roles/iam.securityAdmin"', "billing IAM-only administration role"),
 ):
     require(token, sa, label)
 bootstrap_read = sa.split(
@@ -436,12 +437,48 @@ for name, workflow in (
     if guard in workflow and "google-github-actions/auth@" in workflow:
         if workflow.index(guard) > workflow.index("google-github-actions/auth@"):
             errors.append(f"{name} main-ref guard runs after cloud authentication")
-for name, workflow in (
-    ("plan", plan_workflow),
-    ("apply-plan", apply_workflow),
-    ("drift", drift_workflow),
-):
-    require("-lock-timeout=20m", workflow, f"{name} state locking")
+protected_workflows = tuple(
+    (
+        name,
+        "\n".join(
+            line
+            for line in workflow.splitlines()
+            if not line.lstrip().startswith("#")
+        ),
+    )
+    for name, workflow in (
+        ("plan", plan_workflow),
+        ("apply", apply_workflow),
+        ("drift", drift_workflow),
+    )
+)
+for name, workflow in protected_workflows:
+    lock_label = "apply-plan" if name == "apply" else name
+    require("-lock-timeout=20m", workflow, f"{lock_label} state locking")
+    for variable in (
+        "TF_VAR_automation_secret_location",
+        "TF_VAR_preserve_legacy_eu_state_replicas",
+        "TF_VAR_state_soft_delete_days",
+        "TF_VAR_noncurrent_version_days",
+        "TF_VAR_noncurrent_version_count",
+        "TF_VAR_kms_protection_level",
+    ):
+        require(variable, workflow, f"{name} explicit protected input {variable}")
+
+preauth_marker = "python3 scripts/validate-ci-config.py --require-state-bucket"
+for name, active_workflow in protected_workflows:
+    require(preauth_marker, active_workflow, f"{name} protected-input preflight")
+    if preauth_marker in active_workflow and "google-github-actions/auth@" in active_workflow:
+        if active_workflow.index(preauth_marker) > active_workflow.index(
+            "google-github-actions/auth@"
+        ):
+            errors.append(f"{name} protected-input preflight runs after cloud authentication")
+active_apply_workflow = dict(protected_workflows)["apply"]
+if active_apply_workflow.count(preauth_marker) != 2:
+    errors.append(
+        "apply workflow must validate protected inputs independently in plan and apply jobs"
+    )
+
 for path in list((root / ".github/workflows").glob("*.yml")) + [
     root / "Makefile",
     root / "test/clean-room-recovery.md",

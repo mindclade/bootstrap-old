@@ -25,6 +25,15 @@ not reconstructed or relabeled here.
 
 ### Changed
 
+- Made protected bootstrap CI inputs explicit and fail closed before cloud authentication,
+  including the reviewed legacy-replica disposition, state retention, and KMS settings.
+- Replaced basic project Viewer grants with resource-specific read roles, added the Cloud Identity
+  quota-consumer grant, and scoped billing IAM-policy administration to the bootstrap billing
+  account without granting financial or account-lifecycle administration.
+- Made repository validation include pinned Terraform format, initialization, and validation.
+- Hardened break-glass and state-recovery runbooks with an independently controlled organization
+  IAM recovery grantor, named-human proof, backend locking, isolated candidate imports, and locked
+  state promotion and rollback.
 - Made connected pull-request planning path-aware and added the stable `plan / verdict` check.
   Documentation-only changes skip protected credentials, while Terraform, lockfile, toolchain,
   and plan-control changes still fail closed to the connected plan. Pull-request close events

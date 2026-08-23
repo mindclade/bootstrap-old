@@ -166,6 +166,10 @@ variable "github_org" {
   description = "Canonical GitHub organization login: mindclade."
   type        = string
   default     = "mindclade"
+  validation {
+    condition     = var.github_org == "mindclade"
+    error_message = "github_org must be the canonical mindclade organization."
+  }
 }
 
 variable "github_org_id" {
@@ -248,7 +252,7 @@ variable "buildkite_pipeline_step_contracts" {
 }
 
 variable "break_glass_principals" {
-  description = "Named human users permitted to impersonate the no-standing-permission break-glass account."
+  description = "User IAM members intended to be named humans permitted to impersonate the no-standing-permission break-glass account. Terraform validates syntax; protected activation qualification must prove each member is a human rather than a group."
   type        = set(string)
   validation {
     condition = length(var.break_glass_principals) > 0 && alltrue([

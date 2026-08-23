@@ -25,7 +25,7 @@ apply service accounts.
 
 The user-managed Secret Manager replica and its dedicated CMEK use the same single region
 (`automation_secret_location`, `us-central1` by default). Do not reuse the `us` multi-region
-Terraform-state key: Mindclade's global Secret Manager resource apply rejected that location,
+Terraform-state key: the user-managed regional Secret Manager replica rejected that location,
 and Secret Manager requires a user-managed replica's CMEK location to match the replica exactly.
 A partially applied legacy multi-region `automation-secrets` key is preserved in Google Cloud
 but deliberately removed from Terraform state without destruction; it never protected a secret

@@ -30,8 +30,12 @@ Run only the protected pull-request plan. Accept the plan only when:
   without remote-object changes;
 - changes contain creates for the U.S. key ring/key, five U.S. buckets, sink IAM, recovery read
   access, and five transfer jobs;
+- the only billing-IAM delta is one create granting the bootstrap apply service account
+  `roles/iam.securityAdmin` on the configured billing account, enabling later protected applies
+  to reconcile Terraform-owned billing IAM without financial or account-lifecycle authority;
 - deletes and replacements are exactly zero; and
-- no primary state, backend, WIF, organization IAM, billing IAM, or break-glass resource changes.
+- no primary state, backend, WIF, organization IAM, other billing IAM, or break-glass resource
+  changes.
 
 Abort on an unknown value that prevents those counts from being proven. Never remove
 `prevent_destroy`, edit state manually, or use `terraform state rm` to make the plan pass.

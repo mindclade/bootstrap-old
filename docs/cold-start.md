@@ -49,6 +49,8 @@ stale or unauthorized state.
 - At least one qualified operator and, when staffing permits, an independent watcher.
 - Recovery ownership for GitHub Enterprise, the corporate identity provider, Google Cloud
   organization and billing, and the Squarespace registrar.
+- An independently authenticated Google Cloud organization recovery grantor, held outside daily
+  SSO, GitHub, WIF, and the break-glass service account, as required by `break-glass.md`.
 - Access to the approved operations vault and source repositories.
 - A clean environment with the repository-pinned Nix/toolchain configuration.
 

@@ -25,13 +25,12 @@ From the repository root:
 ```sh
 nix develop
 make validate
-terraform fmt -check -recursive -diff
-terraform init -backend=false -input=false -lockfile=readonly
-terraform validate
 ```
 
 Expected result: the repository contract, Terraform configuration, WIF policy, license
 headers, and local-state safety checks pass without contacting an authoritative backend.
+`make validate` initializes Terraform in a disposable data directory so the checkout remains
+free of `.terraform/` and local state.
 
 ## Continue with first apply
 

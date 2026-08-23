@@ -290,12 +290,14 @@ def validate_makefile_contract(root: Path) -> list[str]:
 
     targets = _parse_makefile(text)
     errors: list[str] = []
-    required_edges = {
-        "validate": "validate-core",
-        "validate-core": "validate-production-contract",
-        "validate-production-contract": "validate-production-contract-tests",
-    }
-    for target, prerequisite in required_edges.items():
+    required_edges = (
+        ("validate", "validate-core"),
+        ("validate", "validate-terraform"),
+        ("validate", "validate-repository-home"),
+        ("validate-core", "validate-production-contract"),
+        ("validate-production-contract", "validate-production-contract-tests"),
+    )
+    for target, prerequisite in required_edges:
         if target not in targets or prerequisite not in targets[target][0]:
             errors.append(
                 f"Makefile target {target} must depend on {prerequisite}"

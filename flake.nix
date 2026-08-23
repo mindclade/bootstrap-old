@@ -77,14 +77,15 @@
           };
 
           ciShell = pkgs.mkShell {
-            packages = with pkgs; [
-              actionlint
-              bashInteractive
-              git
-              gnumake
-              python3
-              shellcheck
-              yamllint
+            packages = [
+              pkgs.actionlint
+              pkgs.bashInteractive
+              pkgs.git
+              pkgs.gnumake
+              pkgs.python3
+              pkgs.shellcheck
+              terraformPinned
+              pkgs.yamllint
             ];
           };
 

@@ -16,6 +16,9 @@ exact clean-commit export that deliberately omits `backend.tf`.
 
 - Google Cloud organization and billing ownership.
 - A named recovery identity protected by phishing-resistant MFA.
+- An external organization recovery grantor independent of daily SSO, GitHub, WIF, and the
+  break-glass service account; see `docs/break-glass.md`. The first apply does not create this
+  external root of trust.
 - Immutable numeric GitHub organization and repository IDs.
 - Immutable GitHub organization and repository IDs for every WIF subject.
 - A secure local workstation and encrypted operations vault.
@@ -70,7 +73,9 @@ sha256sum "${FIRST_APPLY_DIR}/bootstrap-first.tfplan"
 
 Have a second qualified reviewer verify the source SHA marker and inspect the plan, especially
 folder/project placement, IAM, WIF attribute conditions, state-bucket locations, and KMS
-locations.
+locations. The plan must grant the bootstrap apply service account `roles/iam.securityAdmin` only
+on the configured billing account so subsequent Terraform runs can reconcile owned billing IAM;
+it must not grant `roles/billing.admin` or any basic Owner, Editor, or Viewer role to automation.
 
 ## 3. Apply locally once
 
@@ -183,6 +188,38 @@ Configure in `github-config`/GitHub Enterprise:
 - at least one named human in `BREAK_GLASS_PRINCIPALS_JSON`;
 - exact workflow authorization for `.github/workflows/apply.yml`.
 
+Protected workflows do not silently fall back to Terraform defaults. Configure every value below
+from the independently verified first-apply input/output record before any cloud-backed workflow.
+`scripts/validate-ci-config.py` rejects a missing, malformed, or non-U.S. contract before requesting
+an OIDC token.
+
+| Terraform input | GitHub variable | Requirement |
+| --- | --- | --- |
+| `org_id` | `GCP_ORG_ID` | Exact numeric organization ID |
+| `billing_account` | `BILLING_ACCOUNT` | Exact attached billing account |
+| `bootstrap_folder_id` | `BOOTSTRAP_FOLDER_ID` | Empty only when Terraform created the folder; otherwise `folders/NNN` |
+| `prefix` | `RESOURCE_PREFIX` | Exact first-apply value |
+| `region` | `GCP_REGION` | `us-central1` |
+| `residency_profile` | `RESIDENCY_PROFILE` | `us-only-v1` |
+| `state_bucket_location` | `STATE_BUCKET_LOCATION` | `US` |
+| `state_kms_location` | `STATE_KMS_LOCATION` | `us` |
+| `automation_secret_location` | `AUTOMATION_SECRET_LOCATION` | `us-central1` |
+| `state_replica_location` | `STATE_REPLICA_LOCATION` | `us-east4` |
+| `state_replica_kms_location` | `STATE_REPLICA_KMS_LOCATION` | `us-east4` |
+| `preserve_legacy_eu_state_replicas` | `PRESERVE_LEGACY_EU_STATE_REPLICAS` | `false` for greenfield; `true` only for the documented deployed-estate migration |
+| `state_soft_delete_days` | `STATE_SOFT_DELETE_DAYS` | Exact reviewed retention value |
+| `noncurrent_version_days` | `NONCURRENT_VERSION_DAYS` | Exact reviewed lifecycle value |
+| `noncurrent_version_count` | `NONCURRENT_VERSION_COUNT` | Exact reviewed lifecycle value |
+| `kms_protection_level` | `KMS_PROTECTION_LEVEL` | Exact `SOFTWARE` or `HSM` value |
+| `github_org` | `GH_ORGANIZATION` | `mindclade` |
+| `github_org_id` | `GH_ORGANIZATION_ID` | Exact immutable numeric ID |
+| `github_repository_ids` | `GH_REPOSITORY_IDS_JSON` | Exact JSON map for all five repositories |
+| `break_glass_principals` | `BREAK_GLASS_PRINCIPALS_JSON` | Non-empty JSON list; independently prove every entry is one named user, not a group |
+| `security_contact` | `SECURITY_CONTACT` | Verified monitored mailbox |
+
+Buildkite inputs are intentionally absent from protected CI. Their Terraform defaults are the
+only permitted values and permanently disable that retired authority path.
+
 Before enabling release signing, protect the monorepo's `main` branch and create the `release`
 environment with required reviewers and a protected-branch deployment policy. Then verify a
 monorepo token from the exact `refs/heads/main` ref, protected `release` environment, and
@@ -200,7 +237,9 @@ semantics have separate connected qualification.
 
 Before the first federated speculative plan or scheduled drift run, the protected bootstrap
 apply must have granted `roles/browser` at the organization and `roles/billing.viewer` on the
-configured billing account to both read identities. These are refresh permissions only:
+configured billing account to both read identities. Ring-0 project reads use the enumerated
+service-specific viewer roles in `modules/identity/service-accounts.tf`, never basic Viewer.
+These are refresh permissions only:
 `bootstrap-plan` and `bootstrap-drift` must not receive Billing Account User, a folder writer,
 or an organization administrator role.
 

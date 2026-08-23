@@ -5,6 +5,7 @@
 
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -20,6 +21,20 @@ from production_contract_checks import (  # noqa: E402
     validate_makefile_contract,
     validate_workflows,
 )
+
+
+class OutputContractTests(unittest.TestCase):
+    def test_retired_buildkite_outputs_are_always_null(self) -> None:
+        schema = json.loads((ROOT / "contracts/outputs.schema.json").read_text())
+        buildkite = schema["properties"]["buildkite"]
+
+        self.assertEqual(buildkite["properties"]["enabled"], {"const": False})
+        self.assertEqual(
+            buildkite["properties"]["workload_identity_pool"], {"type": "null"}
+        )
+        self.assertEqual(
+            buildkite["properties"]["workload_identity_provider"], {"type": "null"}
+        )
 
 
 class WorkflowContractTests(unittest.TestCase):
@@ -167,8 +182,10 @@ class MakefileContractTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "Makefile").write_text(
-                "validate: validate-core\n"
+                "validate: validate-core validate-terraform validate-repository-home\n"
                 "validate-core: validate-production-contract\n"
+                "validate-terraform:\n"
+                "validate-repository-home:\n"
                 "validate-production-contract: validate-production-contract-tests\n"
                 "\tpython3 scripts/validate-production-contract.py\n"
                 "validate-production-contract-tests:\n"

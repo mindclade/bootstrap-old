@@ -37,7 +37,7 @@ github_repository_ids = {
   mindclade-internal-monorepo = "100000005"
 }
 
-# Enable only after copying immutable UUIDs from Buildkite organization/pipeline settings.
+# Retired authority path. These values are fixed and protected CI does not expose overrides.
 enable_buildkite_wif      = false
 buildkite_organization_id = ""
 buildkite_pipeline_ids    = []

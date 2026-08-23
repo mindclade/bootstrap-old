@@ -132,14 +132,22 @@ implementation paths directly.
   Raw plan and error output are discarded; plan failure still reconciles the deduplicated security
   issue instead of silently skipping reporting.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
-  Account Viewer on the configured billing account. They can refresh folders, projects, and
-  billing-backed resources but cannot create/move resources, link projects, or change billing.
+  Account Viewer on the configured billing account. Project reads use service-specific viewer
+  roles for KMS, IAM, logging, monitoring, Secret Manager, Service Usage, Storage, and Storage
+  Transfer; no automation identity receives the basic Viewer role. They can refresh Ring-0
+  resources but cannot create/move resources, link projects, or change billing.
+- The bootstrap apply identity receives IAM Security Admin only on the configured billing account
+  so Terraform can reconcile its owned billing IAM members. It does not receive Billing Account
+  Administrator and therefore cannot perform billing account lifecycle or payment operations.
 - The CI/CD project enables the Cloud Identity API as the IdP export's explicit quota consumer,
   but Cloud Identity directory reads are not modeled as Resource Manager organization IAM. Until
   a separately approved Workspace/Cloud Identity authorization exists, the IdP export follows
   the named-admin, reviewed, fail-closed path in `docs/cloud-identity-authorization.md`.
-- The break-glass account has no standing organization role. Temporary grants are conditional,
-  time-bound, alerted, explicitly revoked, and reviewed.
+- The break-glass account has no standing organization role. A separately controlled external
+  organization recovery grantor—not created by Terraform and independent of GitHub/WIF/daily
+  SSO—issues the conditional grant. Temporary grants are time-bound, alerted, explicitly revoked,
+  and reviewed. Terraform validates impersonator syntax; protected activation proves each member
+  is one named human rather than a group or shared identity.
 - Terraform creates Secret Manager containers but never secret payload versions.
 
 ## State and recovery model

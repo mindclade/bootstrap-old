@@ -11,6 +11,14 @@ Emergency access to recover the Google Cloud control plane. The service account 
 standing organization permissions**. Named humans may impersonate it, every use generates a
 critical alert, and any temporary grant must expire.
 
+This service account is an emergency **execution identity**, not the root credential that grants
+its own authority. A separately controlled Google Cloud organization recovery grantor must remain
+available outside GitHub, WIF, the break-glass service account, and the daily SSO failure domain.
+That external grantor needs `resourcemanager.organizations.getIamPolicy` and
+`resourcemanager.organizations.setIamPolicy` on the organization. Terraform deliberately does not
+create or store that root credential. Without the independently tested external grantor, this
+runbook is circular and break-glass is not production-qualified.
+
 ## Use only when
 
 - WIF failure prevents the normal protected apply path from authenticating.
@@ -22,7 +30,14 @@ Being in a hurry is not a break-glass condition.
 
 ## Before production
 
-- Configure at least one named human operator; group principals are not accepted.
+- Configure at least one intended named human operator. Terraform validates email syntax only;
+  before activation, a Cloud Identity administrator must prove that every configured principal is
+  a user and not a group, alias, shared mailbox, or service account.
+- Designate the minimum number of external organization recovery grantors. Keep their
+  authentication independent of daily SSO, GitHub, WIF, and the break-glass service account;
+  require phishing-resistant MFA and store the recovery process in the approved offline vault.
+- Prove an external recovery grantor can read and conditionally update organization IAM without
+  using GitHub or WIF, then remove the harmless test binding.
 - Ensure the security mailbox accepts mail from `alerting-noreply@google.com`.
 - Send a test notification and record delivery evidence before relying on the channel.
 - Confirm an unauthorized user cannot impersonate the account.
@@ -38,15 +53,21 @@ owner before elevation. Two people participate whenever staffing permits: operat
 
 ### 2. Grant the narrowest time-bound role
 
+Authenticate as the external organization recovery grantor. Do not impersonate the break-glass
+service account to grant its own authority.
+
 ```sh
 ORG_ID="..."
 BG="$(terraform output -raw break_glass_account)"
-EXPIRY="$(date -u -d '+1 hour' '+%Y-%m-%dT%H:%M:%SZ')" # GNU date
+INCIDENT="INC-XXXX"
+ROLE="<narrow-role>"
+EXPIRY="$(python3 -c 'from datetime import UTC, datetime, timedelta; print((datetime.now(UTC) + timedelta(hours=1)).strftime("%Y-%m-%dT%H:%M:%SZ"))')"
+CONDITION="expression=request.time < timestamp('${EXPIRY}'),title=break-glass-${INCIDENT},description=Incident ${INCIDENT}"
 
 gcloud organizations add-iam-policy-binding "$ORG_ID" \
   --member="serviceAccount:${BG}" \
-  --role="<narrow-role>" \
-  --condition="expression=request.time < timestamp('${EXPIRY}'),title=break-glass-INC-XXXX,description=Incident INC-XXXX"
+  --role="${ROLE}" \
+  --condition="${CONDITION}"
 ```
 
 Use organization administrator only when no narrower role can recover the incident.
@@ -65,6 +86,20 @@ Maintain a contemporaneous incident log.
 
 Do not rely on expiry as the normal revocation path. Remove the exact conditional binding and
 verify no grant remains.
+
+```sh
+gcloud organizations remove-iam-policy-binding "$ORG_ID" \
+  --member="serviceAccount:${BG}" \
+  --role="${ROLE}" \
+  --condition="${CONDITION}"
+
+gcloud organizations get-iam-policy "$ORG_ID" --format=json \
+  | jq --arg member "serviceAccount:${BG}" \
+      '[.bindings[] | select(.members[]? == $member)] | length == 0'
+```
+
+The final command must print `true`. Preserve the pre-grant and post-revocation policy etags in
+the incident record without publishing the full organization policy.
 
 ### 5. Review within 24 hours
 
@@ -85,6 +120,7 @@ normal logging plane is available.
 
 Exercise the path at least twice per year using a harmless, five-minute role. Verify:
 
+- the external recovery grantor authenticates without daily SSO, GitHub, WIF, or CI;
 - impersonation succeeds for an authorized named human;
 - the critical notification arrives;
 - Cloud Audit Logs contain token exchange and actions;
@@ -96,6 +132,8 @@ Record drill evidence in the approved incident/recovery system.
 ## Verify recovery
 
 - The normal protected plan and apply identities authenticate and operate at their intended scope.
+- The external recovery grantor remains independently accessible and every configured
+  impersonator still resolves to one named Cloud Identity user.
 - The exact temporary conditional IAM binding is absent.
 - Audit logs account for every impersonation and administrative action.
 - Alerts were delivered and incident evidence names the operator, watcher, scope, and timestamps.

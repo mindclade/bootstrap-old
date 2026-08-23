@@ -66,12 +66,12 @@ procedure.
 nix develop
 make validate
 make lint
-terraform fmt -check -recursive -diff
-terraform init -backend=false -input=false -lockfile=readonly
-terraform validate
 ```
 
-`make plan-local` is for first apply or documented recovery only.
+`make validate` performs pinned Terraform formatting, isolated backend-free initialization, and
+configuration validation without leaving `.terraform/` in the checkout. Local planning is not a
+supported development command. The only local-state flow is the exact clean-commit export in
+`docs/first-apply.md`; recovery follows `docs/state-recovery.md`.
 
 ## Never commit
 
