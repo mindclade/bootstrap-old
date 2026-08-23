@@ -45,6 +45,16 @@ required_paths:
     - docs/first-apply.md
     - docs/break-glass.md
     - docs/state-recovery.md
+    - docs/generated/dr-readiness.md
+    - .github/workflows/dr-readiness.yml
+    - .github/workflows/prepare-drill.yml
+    - contracts/dr-evidence-index.json
+    - scripts/dr-readiness.py
+    - scripts/prepare-drill.py
+    - scripts/summarize-drift.py
+    - tests/test_dr_readiness.py
+    - tests/test_prepare_drill.py
+    - tests/test_summarize_drift.py
 forbidden_paths:
     - modules/folders
     - modules/governance

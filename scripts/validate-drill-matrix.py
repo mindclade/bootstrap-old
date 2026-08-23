@@ -41,6 +41,8 @@ def main() -> int:
         "reusable-dr-evidence.yml@refs/tags/v5.0.0"
     ):
         raise SystemExit("DR evidence workflow must use immutable v5.0.0")
+    if matrix["reportSchema"] != "mindclade/.github/schemas/drill-report-v3.schema.json":
+        raise SystemExit("DR reports must use the change-bound v3 schema")
     if matrix["operatorPolicy"] != {
         "requiredRoles": ["primary", "observer"],
         "distinctIdentities": True,

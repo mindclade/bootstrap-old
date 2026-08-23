@@ -129,4 +129,4 @@ schema v2 and use the latest independently observed passing report as the operat
 
 | Date | Operator | External control | Ring 0 | GitHub governance | Cloud layers | GitOps/apps | Total | Findings |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| Not yet qualified | — | — | — | — | — | — | — | No validated report v2 exists; first independent scratch drill is scheduled in the drill program |
+| Not yet qualified | — | — | — | — | — | — | — | No validated report v3 exists; first independent scratch drill is scheduled in the drill program |

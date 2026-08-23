@@ -62,6 +62,13 @@ jobs:
           test -s test/clean-room-recovery.md
           bash scripts/verify-no-local-state.sh
           python3 scripts/verify-wif-policy.py
+          python3 scripts/dr-readiness.py --check-doc --output dr-readiness.json
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: quarterly-dr-readiness-${{ github.run_id }}
+          path: dr-readiness.json
+          retention-days: 30
+          if-no-files-found: error
 
   inspect-state:
     if: inputs.inspect-state == true

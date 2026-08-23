@@ -4,23 +4,17 @@
 
 This program defines objectives and cadence; it is not evidence that recovery works. Every drill
 runs only in scratch or staging, uses a primary operator and a distinct observer, and publishes a
-measured report v2 to the protected append-only archive. Production mutation is outside this drill
+measured report v3 to the protected append-only archive. Production mutation is outside this drill
 program.
 
-## Objectives and next executions
+## Objectives, evidence, and next executions
 
-| Drill | Environment | RPO | RTO | Cadence | Next execution |
-| --- | --- | ---: | ---: | --- | --- |
-| Bootstrap clean-room | scratch | 24 h | 8 h | annual | 2026-10-13 |
-| Terraform-state recovery | scratch | 24 h | 4 h | semiannual | 2026-09-22 |
-| GitHub/IdP outage | scratch | 1 h | 4 h | semiannual | 2026-10-06 |
-| Organization-policy rollback | staging | 0 | 2 h | quarterly | 2026-09-15 |
-| VPC Service Controls lockout | staging | 0 | 2 h | quarterly | 2026-09-29 |
-| GKE reconstruction | staging | 1 h | 4 h | semiannual | 2026-11-03 |
-| Argo CD rebootstrap | staging | 0 | 2 h | quarterly | 2026-10-20 |
-| Cloud SQL restore | staging | 1 h | 4 h | quarterly | 2026-11-10 |
-| Protected-bucket restore | staging | 1 h | 4 h | quarterly | 2026-11-17 |
-| Compromised-artifact revocation | staging | 0 | 1 h | quarterly | 2026-09-08 |
+The checked-in [generated readiness inventory](generated/dr-readiness.md) is derived from the
+machine-readable matrix and evidence index. The daily readiness workflow evaluates due dates at
+runtime, opens one deduplicated issue at 30 days, escalates the same issue at seven days or when
+overdue, and treats missing or expired evidence as blocked. The generated inventory is the only
+checked-in rendering of objective, cadence, schedule, and evidence state; edit the contracts, not
+the table.
 
 Zero RPO means recovery must return to the exact reviewed policy, Git selection, or admission state;
 it does not assert zero data loss for an application data store. Dates move only through review, and
@@ -41,7 +35,9 @@ and destination. During execution, retain UTC timestamps, commands and outputs, 
 evidence, and every deviation. After execution, record observed RPO/RTO, failures, corrective
 actions with owners/dates, and the next drill date.
 
-Validate against `mindclade/.github/schemas/drill-report-v2.schema.json` and its semantic validator.
+Validate against `mindclade/.github/schemas/drill-report-v3.schema.json` and its semantic validator.
+Report v3 is a strict extension of the historical v2 contract and binds every execution to a
+Mindclade pull request or issue through `change_reference`. Historical v2 evidence remains valid.
 The shared `reusable-dr-evidence.yml` workflow binds report environment, caller commit, primary, and
 observer before authentication. It publishes a content-addressed object using a no-overwrite
 precondition and retains a complementary GitHub Actions artifact.
@@ -51,6 +47,13 @@ uniform access, public-access prevention, customer-managed encryption, access lo
 locked for seven years, and a writer identity unable to overwrite, delete, or change retention.
 Real project, bucket, provider, and service-account identifiers are injected only through protected
 environment variables.
+
+Use the `Prepare DR drill` workflow from protected `main` to create the non-mutating source packet.
+It fixes the matrix objective, exact caller revision, distinct operators, change reference, success
+criteria, and abort conditions before an operator runs a command. Complete the measured v3 report
+after execution, validate it through the shared v5 workflow, then update
+`contracts/dr-evidence-index.json` with the protected URI, digest, qualification date, and expiry in
+a reviewed follow-up. The source packet is preparation, never evidence.
 
 ## Qualification rule
 

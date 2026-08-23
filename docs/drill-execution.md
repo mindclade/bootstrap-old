@@ -47,7 +47,7 @@ zero-drift checks before stopping the RTO timer.
 
 ## Archive and close
 
-1. Complete report v2 with measured RPO/RTO, timestamps, evidence digests, failures, corrective
+1. Complete report v3 with measured RPO/RTO, timestamps, change reference, evidence digests, failures, corrective
    actions with owners/dates, and the next scheduled execution.
 2. Validate with the immutable `.github` report validator and dispatch this repository's
    `dr-evidence.yml` from the matching protected environment. The primary must be the dispatching

@@ -128,6 +128,9 @@ implementation paths directly.
   no cache data access and creates no cache service account.
 - Plan, drift, bootstrap apply, GitHub governance, and infrastructure apply are separate
   service accounts with distinct authority.
+- Scheduled Ring-0 drift retains only an address-free JSON action/risk summary for seven days.
+  Raw plan and error output are discarded; plan failure still reconciles the deduplicated security
+  issue instead of silently skipping reporting.
 - Bootstrap plan and drift receive read-only hierarchy Browser at the organization plus Billing
   Account Viewer on the configured billing account. They can refresh folders, projects, and
   billing-backed resources but cannot create/move resources, link projects, or change billing.

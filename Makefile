@@ -1,8 +1,8 @@
-.PHONY: validate validate-core validate-bazel-cache-identity validate-drill-matrix validate-plan-change validate-production-contract validate-production-contract-tests validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-bazel-cache-identity validate-drill-matrix validate-dr-readiness validate-plan-change validate-production-contract validate-production-contract-tests validate-repository-home lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
 validate: validate-core validate-repository-home
 
-validate-core: validate-bazel-cache-identity validate-drill-matrix validate-plan-change validate-production-contract
+validate-core: validate-bazel-cache-identity validate-drill-matrix validate-dr-readiness validate-plan-change validate-production-contract
 	bash scripts/validate.sh
 
 validate-bazel-cache-identity:
@@ -10,6 +10,10 @@ validate-bazel-cache-identity:
 
 validate-drill-matrix:
 	python3 scripts/validate-drill-matrix.py
+
+validate-dr-readiness:
+	python3 scripts/dr-readiness.py --check-doc >/dev/null
+	python3 -m unittest tests.test_dr_readiness tests.test_prepare_drill tests.test_summarize_drift
 
 validate-plan-change:
 	python3 -m unittest tests.test_plan_change

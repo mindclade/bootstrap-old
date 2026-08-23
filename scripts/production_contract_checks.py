@@ -19,11 +19,13 @@ from pathlib import Path
 REQUIRED_WORKFLOWS = (
     "apply.yml",
     "dr-evidence.yml",
+    "dr-readiness.yml",
     "drift.yml",
     "license-headers.yml",
     "nix-flake.yml",
     "nix-qualification.yml",
     "plan.yml",
+    "prepare-drill.yml",
     "production-contract.yml",
     "recovery-drill.yml",
     "validate.yml",

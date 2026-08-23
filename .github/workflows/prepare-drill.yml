@@ -1,0 +1,67 @@
+---
+# Copyright © 2026 Mindclade, LLC. All Rights Reserved.
+# Mindclade Proprietary and Confidential.
+# SPDX-License-Identifier: LicenseRef-Mindclade-Proprietary
+
+name: Prepare DR drill
+
+on:
+  workflow_dispatch:
+    inputs:
+      drill-id:
+        description: Matrix drill identifier.
+        required: true
+        type: choice
+        options:
+          - bootstrap-clean-room
+          - terraform-state-recovery
+          - github-idp-outage
+          - org-policy-rollback
+          - vpc-sc-lockout
+          - gke-reconstruction
+          - argocd-rebootstrap
+          - cloud-sql-restore
+          - protected-bucket-restore
+          - compromised-artifact-revocation
+      observer-operator:
+        description: Distinct GitHub login observing the drill.
+        required: true
+        type: string
+      change-reference:
+        description: Mindclade GitHub pull request or issue URL authorizing the drill.
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  packet:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Create non-mutating execution packet
+        env:
+          DRILL_ID: ${{ inputs.drill-id }}
+          OBSERVER: ${{ inputs.observer-operator }}
+          CHANGE_REFERENCE: ${{ inputs.change-reference }}
+        run: |
+          set -euo pipefail
+          python3 scripts/prepare-drill.py \
+            --drill-id "$DRILL_ID" \
+            --primary "$GITHUB_ACTOR" \
+            --observer "$OBSERVER" \
+            --change-reference "$CHANGE_REFERENCE" \
+            --source-sha "$GITHUB_SHA" \
+            --prepared-at "$(date -u +%Y-%m-%dT%H:%M:%S+00:00)" \
+            --output drill-execution-packet.json
+      - uses: actions/upload-artifact@330a01c490aca151604b8cf639adc76d48f6c5d4  # v5
+        with:
+          name: dr-execution-packet-${{ inputs.drill-id }}-${{ github.run_id }}
+          path: drill-execution-packet.json
+          retention-days: 30
+          if-no-files-found: error
