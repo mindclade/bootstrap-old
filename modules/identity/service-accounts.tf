@@ -11,8 +11,20 @@ locals {
       # projects.get/list permissions needed to refresh the bootstrap folder and projects.
       org_roles = ["roles/browser", "roles/iam.securityReviewer"]
       project_roles = {
-        seed = ["roles/viewer"]
-        cicd = ["roles/viewer"]
+        seed = [
+          "roles/cloudkms.viewer",
+          "roles/iam.serviceAccountViewer",
+          "roles/logging.viewer",
+          "roles/monitoring.viewer",
+          "roles/secretmanager.viewer",
+          "roles/serviceusage.serviceUsageViewer",
+          "roles/storage.legacyBucketReader",
+          "roles/storagetransfer.viewer",
+        ]
+        cicd = [
+          "roles/iam.workloadIdentityPoolViewer",
+          "roles/serviceusage.serviceUsageViewer",
+        ]
       }
     }
     bootstrap-drift = {
@@ -20,8 +32,20 @@ locals {
       repo      = "bootstrap"
       org_roles = ["roles/browser", "roles/iam.securityReviewer"]
       project_roles = {
-        seed = ["roles/viewer"]
-        cicd = ["roles/viewer"]
+        seed = [
+          "roles/cloudkms.viewer",
+          "roles/iam.serviceAccountViewer",
+          "roles/logging.viewer",
+          "roles/monitoring.viewer",
+          "roles/secretmanager.viewer",
+          "roles/serviceusage.serviceUsageViewer",
+          "roles/storage.legacyBucketReader",
+          "roles/storagetransfer.viewer",
+        ]
+        cicd = [
+          "roles/iam.workloadIdentityPoolViewer",
+          "roles/serviceusage.serviceUsageViewer",
+        ]
       }
     }
     bootstrap-apply = {
@@ -58,7 +82,7 @@ locals {
       # the manual fail-closed export and separately approved delegated-admin paths.
       org_roles = []
       project_roles = {
-        seed = ["roles/viewer"]
+        cicd = ["roles/serviceusage.serviceUsageConsumer"]
       }
     }
     github-config-apply = {
@@ -75,10 +99,7 @@ locals {
         "roles/iam.securityReviewer",
         "roles/cloudasset.viewer",
       ]
-      project_roles = {
-        seed = ["roles/viewer"]
-        cicd = ["roles/viewer"]
-      }
+      project_roles = {}
     }
     infrastructure-live-apply-foundation = {
       display = "Infrastructure live organization foundation apply"
@@ -181,6 +202,16 @@ resource "google_project_iam_member" "automation" {
 resource "google_billing_account_iam_member" "bootstrap_apply" {
   billing_account_id = var.billing_account
   role               = "roles/billing.user"
+  member             = "serviceAccount:${google_service_account.this["bootstrap-apply"].email}"
+}
+
+# Bootstrap owns the billing-account IAM bindings below. The protected apply identity therefore
+# needs only IAM-policy administration on this one billing account; Billing Account Administrator
+# is deliberately not used because it also permits financial and account-lifecycle operations.
+# The one-time recovery identity creates this self-hosting grant during first apply.
+resource "google_billing_account_iam_member" "bootstrap_billing_iam_admin" {
+  billing_account_id = var.billing_account
+  role               = "roles/iam.securityAdmin"
   member             = "serviceAccount:${google_service_account.this["bootstrap-apply"].email}"
 }
 

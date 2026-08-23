@@ -52,26 +52,13 @@ first, verify allowed and denied token exchanges, then update callers. Never tem
 the condition to another ref, a repository-wide principal, or a wildcard workflow. The builder
 and qualifier use separate ARC capability providers and must never receive the exported signer principal.
 
-The deprecated Buildkite source is permanently disabled and retained only through the ARC
-acceptance window. Historical recovery evidence used this token-generation contract. Every
-Google Cloud credential
-exchange must request:
-
-```sh
-buildkite-agent oidc request-token \
-  --audience "$BUILDKITE_WIF_PROVIDER" \
-  --subject-claim pipeline_id \
-  --claim organization_id \
-  --format gcp
-```
-
-The provider maps the immutable pipeline UUID to `google.subject`, requires the separately
-included organization UUID, allowlists the exact pipeline-ID/step-key pair, requires a
-  `self-hosted` runner on `main` from a webhook build, and requires the exact audience.
-Do not use Buildkite's default compound subject: organization, pipeline, ref, commit, and step
-can exceed Google Cloud's 127-byte mapped-subject limit. Step-level service-account bindings
-remain an additional restriction. Treat any pipeline that does not request this exact token
-shape as denied, then prove positive and wrong-pipeline/wrong-step exchanges before activation.
+Buildkite is retired and is not a rotatable authority path. `enable_buildkite_wif` is permanently
+`false`; its pool and provider outputs must remain `null`, and protected CI intentionally publishes
+none of its former inputs. The dormant Terraform definitions preserve the historical teardown and
+compatibility contract only. Do not request a Buildkite token, recreate its pool/provider, or use
+the old exchange procedure as a fallback. Any observed live Buildkite binding is undeclared drift:
+freeze applies, preserve audit evidence, and remove it through a separately reviewed revocation or
+decommission plan.
 
 After break-glass use, remove temporary IAM grants, review audit logs, rotate any exposed
 recovery material, and record a post-incident review.

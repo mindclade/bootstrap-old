@@ -34,23 +34,25 @@ env:
   TF_INPUT: "false"
   TF_VAR_org_id: ${{ vars.GCP_ORG_ID }}
   TF_VAR_billing_account: ${{ vars.BILLING_ACCOUNT }}
-  TF_VAR_bootstrap_folder_id: ${{ vars.BOOTSTRAP_FOLDER_ID || '' }}
-  TF_VAR_prefix: ${{ vars.RESOURCE_PREFIX || 'mc' }}
-  TF_VAR_region: ${{ vars.GCP_REGION || 'us-central1' }}
-  TF_VAR_residency_profile: ${{ vars.RESIDENCY_PROFILE || 'us-only-v1' }}
-  TF_VAR_state_bucket_location: ${{ vars.STATE_BUCKET_LOCATION || 'US' }}
-  TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION || 'us' }}
-  TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION || 'us-east4' }}
-  TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION || 'us-east4' }}
-  TF_VAR_github_org: ${{ vars.GH_ORGANIZATION || 'mindclade' }}
+  TF_VAR_bootstrap_folder_id: ${{ vars.BOOTSTRAP_FOLDER_ID }}
+  TF_VAR_prefix: ${{ vars.RESOURCE_PREFIX }}
+  TF_VAR_region: ${{ vars.GCP_REGION }}
+  TF_VAR_residency_profile: ${{ vars.RESIDENCY_PROFILE }}
+  TF_VAR_state_bucket_location: ${{ vars.STATE_BUCKET_LOCATION }}
+  TF_VAR_state_kms_location: ${{ vars.STATE_KMS_LOCATION }}
+  TF_VAR_automation_secret_location: ${{ vars.AUTOMATION_SECRET_LOCATION }}
+  TF_VAR_state_replica_location: ${{ vars.STATE_REPLICA_LOCATION }}
+  TF_VAR_state_replica_kms_location: ${{ vars.STATE_REPLICA_KMS_LOCATION }}
+  TF_VAR_preserve_legacy_eu_state_replicas: ${{ vars.PRESERVE_LEGACY_EU_STATE_REPLICAS }}
+  TF_VAR_state_soft_delete_days: ${{ vars.STATE_SOFT_DELETE_DAYS }}
+  TF_VAR_noncurrent_version_days: ${{ vars.NONCURRENT_VERSION_DAYS }}
+  TF_VAR_noncurrent_version_count: ${{ vars.NONCURRENT_VERSION_COUNT }}
+  TF_VAR_kms_protection_level: ${{ vars.KMS_PROTECTION_LEVEL }}
+  TF_VAR_github_org: ${{ vars.GH_ORGANIZATION }}
   TF_VAR_github_org_id: ${{ vars.GH_ORGANIZATION_ID }}
   TF_VAR_github_repository_ids: ${{ vars.GH_REPOSITORY_IDS_JSON }}
-  TF_VAR_enable_buildkite_wif: ${{ vars.ENABLE_BUILDKITE_WIF || 'false' }}
-  TF_VAR_buildkite_organization_id: ${{ vars.BUILDKITE_ORGANIZATION_ID || '' }}
-  TF_VAR_buildkite_pipeline_ids: ${{ vars.BUILDKITE_PIPELINE_IDS_JSON || '[]' }}
-  TF_VAR_buildkite_pipeline_step_contracts: ${{ vars.BUILDKITE_PIPELINE_STEP_CONTRACTS_JSON || '{}' }}
-  TF_VAR_break_glass_principals: ${{ vars.BREAK_GLASS_PRINCIPALS_JSON || '[]' }}
-  TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT || 'security@mindclade.com' }}
+  TF_VAR_break_glass_principals: ${{ vars.BREAK_GLASS_PRINCIPALS_JSON }}
+  TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT }}
 
 jobs:
   plan:
@@ -70,6 +72,10 @@ jobs:
           persist-credentials: false
       - name: Verify exact triggering commit
         run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Verify protected Terraform input contract before authentication
+        env:
+          STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: python3 scripts/validate-ci-config.py --require-state-bucket
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
@@ -153,6 +159,10 @@ jobs:
           persist-credentials: false
       - name: Verify exact triggering commit
         run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+      - name: Verify protected Terraform input contract before authentication
+        env:
+          STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
+        run: python3 scripts/validate-ci-config.py --require-state-bucket
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
           name: bootstrap-plan-${{ github.sha }}

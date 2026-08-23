@@ -21,8 +21,9 @@ resource "google_service_account" "break_glass" {
   description  = "Emergency access. Every use alerts. Grants are time-bound. See docs/break-glass.md."
 }
 
-# Named individuals only. A group address here would make the audit trail say "someone in a
-# group of twelve", which is not an audit trail.
+# Intended for named individuals only. Terraform can validate member syntax but cannot determine
+# whether an email resolves to a human or a group; the protected activation preflight and recurring
+# drill must prove that external Cloud Identity property before production reliance.
 resource "google_service_account_iam_member" "break_glass_impersonation" {
   for_each = var.break_glass_principals
 

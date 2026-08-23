@@ -28,8 +28,12 @@ class PlanChangeTests(unittest.TestCase):
             ".terraform.lock.hcl",
             "module/.terraform.lock.hcl",
             ".terraform-version",
+            ".github/workflows/apply.yml",
+            ".github/workflows/drift.yml",
             ".github/workflows/plan.yml",
+            ".github/workflows/recovery-drill.yml",
             "scripts/classify-plan-change.py",
+            "scripts/validate-ci-config.py",
         ):
             with self.subTest(path=path):
                 self.assertTrue(classifier.requires_connected_plan([path]))
@@ -53,7 +57,7 @@ class PlanChangeTests(unittest.TestCase):
         )
         self.assertIn(
             "grep -Eq '^(\\.github/workflows/plan\\.yml|"
-            "scripts/classify-plan-change\\.py)$'",
+            "scripts/(classify-plan-change|validate-ci-config)\\.py)$'",
             workflow,
         )
         self.assertIn(

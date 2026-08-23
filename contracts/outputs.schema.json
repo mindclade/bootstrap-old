@@ -246,24 +246,10 @@
       "properties": {
         "enabled": {"const": false},
         "workload_identity_pool": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/wif_pool"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "type": "null"
         },
         "workload_identity_provider": {
-          "oneOf": [
-            {
-              "$ref": "#/$defs/wif_provider"
-            },
-            {
-              "type": "null"
-            }
-          ]
+          "type": "null"
         }
       }
     },

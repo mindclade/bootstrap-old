@@ -16,9 +16,13 @@ from pathlib import Path
 
 SHA = re.compile(r"^[0-9a-f]{40}$")
 CONTROL_PATHS = {
+    ".github/workflows/apply.yml",
+    ".github/workflows/drift.yml",
     ".github/workflows/plan.yml",
+    ".github/workflows/recovery-drill.yml",
     ".terraform-version",
     "scripts/classify-plan-change.py",
+    "scripts/validate-ci-config.py",
 }
 
 

@@ -18,6 +18,8 @@ root_main = (root / "main.tf").read_text()
 project_outputs = (root / "modules/projects/outputs.tf").read_text()
 automation_secret = (root / "modules/identity/automation-secrets.tf").read_text()
 first_apply = (root / "docs/first-apply.md").read_text()
+state_recovery = (root / "docs/state-recovery.md").read_text()
+break_glass_runbook = (root / "docs/break-glass.md").read_text()
 prepare_first_apply = (root / "scripts/prepare-first-apply.py").read_text()
 makefile = (root / "Makefile").read_text()
 recovery_drill = (root / ".github/workflows/recovery-drill.yml").read_text()
@@ -103,6 +105,20 @@ for token, label in (
 ):
     require(token, first_apply, label)
 
+state_replica_migration = (root / "docs/state-replica-migration.md").read_text()
+for token, label in (
+    (
+        "the only billing-IAM delta is one create",
+        "state-replica migration billing-IAM exception",
+    ),
+    (
+        "`roles/iam.securityAdmin` on the configured billing account",
+        "state-replica migration scoped billing-IAM role",
+    ),
+    ("no primary state, backend, WIF, organization IAM, other billing IAM", "migration IAM boundary"),
+):
+    require(token, state_replica_migration, label)
+
 for token, label in (
     (
         "exact clean-commit export that deliberately omits `backend.tf`",
@@ -120,6 +136,54 @@ for token, label in (
     require(token, first_apply, label)
 if "terraform init -backend=false -input=false\nterraform plan" in first_apply:
     errors.append("first-apply guide still plans after validation-only backend initialization")
+
+for token, label in (
+    (
+        "Do not use `gcloud storage cp` to overwrite the authoritative object",
+        "direct state-object overwrite prohibition",
+    ),
+    (
+        'terraform -chdir="${CANDIDATE_DIR}" apply -input=false candidate-review.tfplan',
+        "isolated candidate import application",
+    ),
+    (
+        '(.lineage | type == "string" and length > 0)',
+        "candidate lineage shape validation",
+    ),
+    (
+        'terraform -chdir="${CANDIDATE_DIR}" plan -input=false -detailed-exitcode',
+        "empty isolated candidate plan gate",
+    ),
+    (
+        'terraform state push -lock-timeout=20m -force "${CANDIDATE_DIR}/terraform.tfstate"',
+        "locked candidate state promotion",
+    ),
+    (
+        '`current-authoritative.tfstate` with the same locked',
+        "locked authoritative-state rollback",
+    ),
+):
+    require(token, state_recovery, label)
+
+for token, label in (
+    (
+        "external organization recovery grantor",
+        "external break-glass recovery grantor",
+    ),
+    (
+        "resourcemanager.organizations.setIamPolicy",
+        "external organization IAM recovery permission",
+    ),
+    (
+        "a user and not a group",
+        "live named-human break-glass proof",
+    ),
+    (
+        "without daily SSO, GitHub, WIF, or CI",
+        "independent external-grantor drill",
+    ),
+):
+    require(token, break_glass_runbook, label)
 
 for token, label in (
     (
