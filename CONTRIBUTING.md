@@ -25,12 +25,19 @@ normal changes use the protected workflow:
 ```text
 pull-request validation + speculative plan
 -> merge
--> plan exact main SHA
+-> verify current default-head SHA and plan exact source
 -> protected bootstrap environment approval
--> apply exact integrity-checked plan
+-> reverify head, provenance, and age; apply exact integrity-checked plan
 ```
 
-Never bypass Git for routine changes.
+The protected plan expires after six hours and is rejected if `main` advances before either
+credential boundary or before apply. Active applies remain non-cancellable. Re-run the workflow to
+produce a fresh plan; never reuse an artifact from an earlier run.
+
+Never bypass Git for routine changes. An older source commit is accepted only by a dispatch from
+the current `main` head with `source_rollback=true`, its full strict-ancestor
+`source_rollback_sha`, a `CHG-`, `INC-`, `SEC-`, or `DR-` reference, and the normal protected
+environment reviews.
 
 ## Pull-request evidence
 

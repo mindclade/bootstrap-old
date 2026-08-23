@@ -52,9 +52,11 @@ required_paths:
     - scripts/dr-readiness.py
     - scripts/prepare-drill.py
     - scripts/summarize-drift.py
+    - scripts/validate-protected-run.py
     - tests/test_dr_readiness.py
     - tests/test_prepare_drill.py
     - tests/test_summarize_drift.py
+    - tests/test_protected_run.py
 forbidden_paths:
     - modules/folders
     - modules/governance

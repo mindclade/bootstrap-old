@@ -1,8 +1,8 @@
-.PHONY: validate validate-core validate-bazel-cache-identity validate-ci-config validate-drill-matrix validate-dr-readiness validate-iam-contract validate-plan-change validate-production-contract validate-production-contract-tests validate-repository-home validate-terraform lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
+.PHONY: validate validate-core validate-bazel-cache-identity validate-ci-config validate-drill-matrix validate-dr-readiness validate-iam-contract validate-plan-change validate-protected-run validate-production-contract validate-production-contract-tests validate-repository-home validate-terraform lint fmt fmt-check first-apply-workdir license-headers license-headers-fix
 
 validate: validate-core validate-terraform validate-repository-home
 
-validate-core: validate-bazel-cache-identity validate-ci-config validate-drill-matrix validate-dr-readiness validate-iam-contract validate-plan-change validate-production-contract
+validate-core: validate-bazel-cache-identity validate-ci-config validate-drill-matrix validate-dr-readiness validate-iam-contract validate-plan-change validate-protected-run validate-production-contract
 	bash scripts/validate.sh
 
 validate-bazel-cache-identity:
@@ -23,6 +23,9 @@ validate-iam-contract:
 
 validate-plan-change:
 	python3 -m unittest tests.test_plan_change
+
+validate-protected-run:
+	python3 -m unittest tests.test_protected_run
 
 validate-repository-home:
 	python3 scripts/validate-repository-home.py --root .

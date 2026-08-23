@@ -246,6 +246,14 @@ or an organization administrator role.
 Run `plan.yml`, then a no-op protected `apply.yml` execution. Normal changes are Git-mediated
 from this point onward.
 
+The protected apply workflow resolves GitHub's current default branch and head before any cloud
+authentication, records that head, the selected source, run ID, creation time, and six-hour
+maximum in the checksummed plan artifact, and verifies them again before apply. A newer `main`
+commit or an expired plan stops the run; dispatch again to obtain a fresh plan. The workflow's
+concurrency group never cancels an active apply. Emergency source rollback is available only from
+the current `main` workflow through the explicit `source_rollback` and full strict-ancestor
+`source_rollback_sha` inputs with a valid change or incident reference and protected approval.
+
 For pull requests, `plan.yml` enters the protected `plan` environment only when Terraform,
 `.terraform.lock.hcl`, `.terraform-version`, or the plan classifier/workflow changes. Manual and
 merge-queue runs always plan. The always-present `plan / verdict` check succeeds without cloud

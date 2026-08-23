@@ -16,7 +16,17 @@ on:
         type: boolean
         default: false
       change_reference:
-        description: Required incident/change identifier when allow_destroy is true.
+        description: Required incident/change identifier for destructive work or source rollback.
+        required: false
+        type: string
+        default: ""
+      source_rollback:
+        description: Explicitly plan an older reviewed source commit for emergency rollback.
+        required: false
+        type: boolean
+        default: false
+      source_rollback_sha:
+        description: Full strict-ancestor commit SHA; valid only when source_rollback is true.
         required: false
         type: string
         default: ""
@@ -55,7 +65,41 @@ env:
   TF_VAR_security_contact: ${{ vars.SECURITY_CONTACT }}
 
 jobs:
+  source:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    outputs:
+      target_sha: ${{ steps.guard.outputs.target_sha }}
+      default_head_sha: ${{ steps.guard.outputs.default_head_sha }}
+      mode: ${{ steps.guard.outputs.mode }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - id: guard
+        name: Resolve current protected source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_ROLLBACK: ${{ inputs.source_rollback || false }}
+          SOURCE_ROLLBACK_SHA: ${{ inputs.source_rollback_sha || '' }}
+          CHANGE_REFERENCE: ${{ inputs.change_reference || '' }}
+        run: |
+          python3 scripts/validate-protected-run.py source \
+            --event-name "$GITHUB_EVENT_NAME" \
+            --event-ref "$GITHUB_REF" \
+            --event-sha "$GITHUB_SHA" \
+            --source-rollback "$SOURCE_ROLLBACK" \
+            --source-rollback-sha "$SOURCE_ROLLBACK_SHA" \
+            --change-reference "$CHANGE_REFERENCE" \
+            --git-root . \
+            --github-output "$GITHUB_OUTPUT"
+
   plan:
+    needs: source
     environment: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -68,14 +112,40 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.source.outputs.target_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify exact triggering commit
-        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+        env:
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - name: Check out current guard implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .protected-run-control
+          fetch-depth: 0
+          persist-credentials: false
       - name: Verify protected Terraform input contract before authentication
         env:
           STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
-        run: python3 scripts/validate-ci-config.py --require-state-bucket
+        run: python3 .protected-run-control/scripts/validate-ci-config.py --require-state-bucket
+      - name: Revalidate protected source before plan authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+          DEFAULT_HEAD_SHA: ${{ needs.source.outputs.default_head_sha }}
+          MODE: ${{ needs.source.outputs.mode }}
+          SOURCE_ROLLBACK: ${{ inputs.source_rollback || false }}
+          SOURCE_ROLLBACK_SHA: ${{ inputs.source_rollback_sha || '' }}
+          CHANGE_REFERENCE: ${{ inputs.change_reference || '' }}
+        run: |
+          python3 .protected-run-control/scripts/validate-protected-run.py check-source \
+            --event-name "$GITHUB_EVENT_NAME" --event-ref "$GITHUB_REF" --event-sha "$GITHUB_SHA" \
+            --source-rollback "$SOURCE_ROLLBACK" --source-rollback-sha "$SOURCE_ROLLBACK_SHA" \
+            --change-reference "$CHANGE_REFERENCE" --git-root .protected-run-control \
+            --expected-target-sha "$TARGET_SHA" --expected-default-head-sha "$DEFAULT_HEAD_SHA" \
+            --expected-mode "$MODE"
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_PLAN }}
@@ -94,10 +164,20 @@ jobs:
           test -n "$STATE_BUCKET"
           terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
       - name: Plan exact merged commit
+        env:
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+          DEFAULT_HEAD_SHA: ${{ needs.source.outputs.default_head_sha }}
+          MODE: ${{ needs.source.outputs.mode }}
         run: |
           set -euo pipefail
           terraform plan -input=false -lock-timeout=20m -out=tfplan
           sha256sum tfplan > tfplan.sha256
+          python3 .protected-run-control/scripts/validate-protected-run.py record-plan \
+            --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" \
+            --event-sha "$GITHUB_SHA" --target-sha "$TARGET_SHA" \
+            --default-head-sha "$DEFAULT_HEAD_SHA" --mode "$MODE" \
+            --output protected-run.json
+          sha256sum protected-run.json > protected-run.sha256
       - id: classify
         name: Classify destructive operations
         run: |
@@ -113,7 +193,7 @@ jobs:
           {
             echo '## Ring-0 plan classification'
             echo
-            echo "Commit: \`${GITHUB_SHA}\`"
+            echo "Target commit: \`${{ needs.source.outputs.target_sha }}\`"
             echo
             echo "| Creates | Updates | Deletes/replacements |"
             echo "|---:|---:|---:|"
@@ -121,10 +201,12 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
       - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
-          name: bootstrap-plan-${{ github.sha }}
+          name: bootstrap-plan-${{ needs.source.outputs.target_sha }}
           path: |
             tfplan
             tfplan.sha256
+            protected-run.json
+            protected-run.sha256
           if-no-files-found: error
           retention-days: 1
       - name: Require explicit destructive-change authorization
@@ -145,7 +227,7 @@ jobs:
           echo "Authorized destructive change: ${CHANGE_REFERENCE}" >> "$GITHUB_STEP_SUMMARY"
 
   apply:
-    needs: plan
+    needs: [source, plan]
     environment: bootstrap
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -155,19 +237,46 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
-          ref: ${{ github.sha }}
+          ref: ${{ needs.source.outputs.target_sha }}
+          fetch-depth: 0
           persist-credentials: false
       - name: Verify exact triggering commit
-        run: test "$(git rev-parse HEAD)" = "${GITHUB_SHA}"
+        env:
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+        run: test "$(git rev-parse HEAD)" = "$TARGET_SHA"
+      - name: Check out current guard implementation
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: .protected-run-control
+          fetch-depth: 0
+          persist-credentials: false
       - name: Verify protected Terraform input contract before authentication
         env:
           STATE_BUCKET: ${{ vars.TFSTATE_BUCKET }}
-        run: python3 scripts/validate-ci-config.py --require-state-bucket
+        run: python3 .protected-run-control/scripts/validate-ci-config.py --require-state-bucket
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093  # v4
         with:
-          name: bootstrap-plan-${{ github.sha }}
-      - name: Verify plan integrity
-        run: sha256sum --check tfplan.sha256
+          name: bootstrap-plan-${{ needs.source.outputs.target_sha }}
+      - name: Verify plan integrity, freshness, and provenance before authentication
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+          DEFAULT_HEAD_SHA: ${{ needs.source.outputs.default_head_sha }}
+          MODE: ${{ needs.source.outputs.mode }}
+          SOURCE_ROLLBACK: ${{ inputs.source_rollback || false }}
+          SOURCE_ROLLBACK_SHA: ${{ inputs.source_rollback_sha || '' }}
+          CHANGE_REFERENCE: ${{ inputs.change_reference || '' }}
+        run: |
+          sha256sum --check tfplan.sha256
+          sha256sum --check protected-run.sha256
+          python3 .protected-run-control/scripts/validate-protected-run.py validate-plan \
+            --metadata protected-run.json --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" \
+            --event-name "$GITHUB_EVENT_NAME" --event-ref "$GITHUB_REF" --event-sha "$GITHUB_SHA" \
+            --source-rollback "$SOURCE_ROLLBACK" --source-rollback-sha "$SOURCE_ROLLBACK_SHA" \
+            --change-reference "$CHANGE_REFERENCE" --git-root .protected-run-control \
+            --expected-target-sha "$TARGET_SHA" --expected-default-head-sha "$DEFAULT_HEAD_SHA" \
+            --expected-mode "$MODE"
       - uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093  # v3
         with:
           workload_identity_provider: ${{ vars.WIF_PROVIDER_APPLY }}
@@ -185,8 +294,24 @@ jobs:
           set -euo pipefail
           test -n "$STATE_BUCKET"
           terraform init -input=false -lockfile=readonly -backend-config="bucket=${STATE_BUCKET}"
-      - name: Apply reviewed plan
-        run: terraform apply -input=false -lock-timeout=20m tfplan
+      - name: Revalidate protected plan and apply
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TARGET_SHA: ${{ needs.source.outputs.target_sha }}
+          DEFAULT_HEAD_SHA: ${{ needs.source.outputs.default_head_sha }}
+          MODE: ${{ needs.source.outputs.mode }}
+          SOURCE_ROLLBACK: ${{ inputs.source_rollback || false }}
+          SOURCE_ROLLBACK_SHA: ${{ inputs.source_rollback_sha || '' }}
+          CHANGE_REFERENCE: ${{ inputs.change_reference || '' }}
+        run: |
+          python3 .protected-run-control/scripts/validate-protected-run.py validate-plan \
+            --metadata protected-run.json --repository "$GITHUB_REPOSITORY" --run-id "$GITHUB_RUN_ID" \
+            --event-name "$GITHUB_EVENT_NAME" --event-ref "$GITHUB_REF" --event-sha "$GITHUB_SHA" \
+            --source-rollback "$SOURCE_ROLLBACK" --source-rollback-sha "$SOURCE_ROLLBACK_SHA" \
+            --change-reference "$CHANGE_REFERENCE" --git-root .protected-run-control \
+            --expected-target-sha "$TARGET_SHA" --expected-default-head-sha "$DEFAULT_HEAD_SHA" \
+            --expected-mode "$MODE"
+          terraform apply -input=false -lock-timeout=20m tfplan
       - name: Publish safe output inventory
         run: |
           terraform output -json | jq 'with_entries(.value |= {sensitive: .sensitive, type: .type})' >> "$GITHUB_STEP_SUMMARY"
