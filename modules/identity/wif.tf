@@ -106,6 +106,15 @@ locals {
   github_production_qualification_subject    = "${local.github_immutable_subject_prefixes[local.github_production_qualification_repository]}:environment:production"
   github_production_qualification_workflow   = "${var.github_org}/gitops/.github/workflows/production-qualification-evidence.yml@refs/heads/main"
 
+  # Immutable workstation-image publication is isolated from OCI release, cache publication,
+  # plans, and applies. The provider accepts only a protected manual dispatch through the
+  # canonical monorepo caller and the exact released shared workflow.
+  github_workstation_image_repository       = local.github_signer_repository
+  github_workstation_image_audience         = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-workstation-image"
+  github_workstation_image_subject          = "${local.github_immutable_subject_prefixes[local.github_workstation_image_repository]}:environment:workstation-image-publication"
+  github_workstation_image_workflow_ref     = "${var.github_org}/${local.github_workstation_image_repository}/.github/workflows/nixos-image.yml@refs/heads/main"
+  github_workstation_image_job_workflow_ref = "${var.github_org}/.github/.github/workflows/reusable-nixos-gce-image-publish.yml@refs/tags/v5.0.0"
+
   github_bazel_cache_repository         = local.github_signer_repository
   github_bazel_cache_audience           = "https://iam.googleapis.com/projects/${var.cicd_project_number}/locations/global/workloadIdentityPools/github/providers/gh-bazel-cache"
   github_bazel_cache_presubmit_workflow = "${var.github_org}/${local.github_bazel_cache_repository}/.github/workflows/presubmit.yml"
@@ -271,6 +280,45 @@ resource "google_iam_workload_identity_pool_provider" "github_production_qualifi
   oidc {
     issuer_uri        = "https://token.actions.githubusercontent.com"
     allowed_audiences = [local.github_production_qualification_audience]
+  }
+}
+
+resource "google_iam_workload_identity_pool_provider" "github_workstation_image" {
+  # checkov:skip=CKV_GCP_125:Owner/repository IDs, protected environment subject, main ref, manual event, exact caller/reusable workflows, and provider audience are enforced below.
+  project = var.cicd_project_id
+
+  workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
+  workload_identity_pool_provider_id = "gh-workstation-image"
+  display_name                       = "Workstation image publisher"
+
+  attribute_mapping = {
+    "google.subject"                = "\"workstation-image:\" + assertion.sub"
+    "attribute.aud"                 = "assertion.aud"
+    "attribute.event_name"          = "assertion.event_name"
+    "attribute.job_workflow_ref"    = "assertion.job_workflow_ref"
+    "attribute.ref"                 = "assertion.ref"
+    "attribute.repository"          = "assertion.repository"
+    "attribute.repository_id"       = "assertion.repository_id"
+    "attribute.repository_owner_id" = "assertion.repository_owner_id"
+    "attribute.workflow_ref"        = "assertion.workflow_ref"
+  }
+
+  attribute_condition = join(" && ", [
+    "assertion.repository_owner_id == ${jsonencode(var.github_org_id)}",
+    "assertion.repository_id == ${jsonencode(var.github_repository_ids[local.github_workstation_image_repository])}",
+    "assertion.repository == ${jsonencode("${var.github_org}/${local.github_workstation_image_repository}")}",
+    "assertion.repository_visibility in [\"internal\", \"private\"]",
+    "assertion.aud == ${jsonencode(local.github_workstation_image_audience)}",
+    "assertion.sub == ${jsonencode(local.github_workstation_image_subject)}",
+    "assertion.ref == \"refs/heads/main\"",
+    "assertion.event_name == \"workflow_dispatch\"",
+    "assertion.workflow_ref == ${jsonencode(local.github_workstation_image_workflow_ref)}",
+    "assertion.job_workflow_ref == ${jsonencode(local.github_workstation_image_job_workflow_ref)}",
+  ])
+
+  oidc {
+    issuer_uri        = "https://token.actions.githubusercontent.com"
+    allowed_audiences = [local.github_workstation_image_audience]
   }
 }
 

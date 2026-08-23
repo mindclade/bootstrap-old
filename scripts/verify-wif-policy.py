@@ -213,6 +213,7 @@ for name in (
     "dr_evidence_identity",
     "production_qualification_identity",
     "bazel_cache_identity",
+    "workstation_image_identity",
 ):
     require(f'output "{name}"', outputs, f"root signer contract output {name}")
     require(
