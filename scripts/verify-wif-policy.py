@@ -465,8 +465,16 @@ for name, workflow in protected_workflows:
     ):
         require(variable, workflow, f"{name} explicit protected input {variable}")
 
-preauth_marker = "python3 scripts/validate-ci-config.py --require-state-bucket"
+preauth_markers = {
+    "plan": "python3 scripts/validate-ci-config.py --require-state-bucket",
+    "apply": (
+        "python3 .protected-run-control/scripts/validate-ci-config.py "
+        "--require-state-bucket"
+    ),
+    "drift": "python3 scripts/validate-ci-config.py --require-state-bucket",
+}
 for name, active_workflow in protected_workflows:
+    preauth_marker = preauth_markers[name]
     require(preauth_marker, active_workflow, f"{name} protected-input preflight")
     if preauth_marker in active_workflow and "google-github-actions/auth@" in active_workflow:
         if active_workflow.index(preauth_marker) > active_workflow.index(
@@ -474,7 +482,7 @@ for name, active_workflow in protected_workflows:
         ):
             errors.append(f"{name} protected-input preflight runs after cloud authentication")
 active_apply_workflow = dict(protected_workflows)["apply"]
-if active_apply_workflow.count(preauth_marker) != 2:
+if active_apply_workflow.count(preauth_markers["apply"]) != 2:
     errors.append(
         "apply workflow must validate protected inputs independently in plan and apply jobs"
     )
