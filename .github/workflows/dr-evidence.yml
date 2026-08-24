@@ -30,7 +30,7 @@ permissions:
 
 jobs:
   publish:
-    uses: mindclade/.github/.github/workflows/reusable-dr-evidence.yml@v5.0.0
+    uses: mindclade/.github/.github/workflows/reusable-dr-evidence.yml@521a86bbcc695735e601a1587f3eea2b9ce2bca1  # v5.0.0 content; tag unpublished
     with:
       report-path: ${{ inputs.report_path }}
       environment: ${{ inputs.environment }}
